@@ -118,8 +118,9 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget> {
     );
   }
 
-@visibleForTesting
-void handleBarcodeDetectionForTest(dynamic capture) {
-  _handleBarcodeDetection(capture as BarcodeCapture);
-}
+  @visibleForTesting
+  void handleBarcodeDetectionForTest(dynamic capture) 
+  {
+    _handleBarcodeDetection(capture as BarcodeCapture);
+  }
 }
