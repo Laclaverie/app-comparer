@@ -1,4 +1,5 @@
 import 'package:client_price_comparer/database/app_database.dart' as db;
+import 'package:client_price_comparer/services/file_system_service.dart' show FileSystemService;
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -122,5 +123,29 @@ class ProductService {
     );
     
     await _db.into(_db.products).insert(product);
+  }
+
+  /// Delete a product and its associated image
+  Future<bool> deleteProductWithImage(db.Product product) async {
+    try {
+      // Delete the product from database first
+      await (_db.delete(_db.products)..where((tbl) => tbl.id.equals(product.id))).go();
+      
+      // Delete the image using the stored path (much more reliable)
+      if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
+        await FileSystemService.deleteProductImageByPath(product.imageUrl);
+      }
+      
+      if (kDebugMode) {
+        print('Deleted product ${product.name} (ID: ${product.id}) and associated image');
+      }
+      
+      return true;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error deleting product with image: $e');
+      }
+      return false;
+    }
   }
 }

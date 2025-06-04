@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
@@ -192,5 +193,27 @@ class FileSystemService {
   static Future<String> getAppDirectoryPath() async {
     final Directory appDir = await getApplicationDocumentsDirectory();
     return appDir.path;
+  }
+
+  /// Delete product image by exact file path
+  static Future<bool> deleteProductImageByPath(String? imagePath) async {
+    if (imagePath == null || imagePath.isEmpty) return false;
+    
+    try {
+      final File file = File(imagePath);
+      if (await file.exists()) {
+        await file.delete();
+        if (kDebugMode) {
+          print('Deleted product image: $imagePath');
+        }
+        return true;
+      }
+      return false;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error deleting image file $imagePath: $e');
+      }
+      return false;
+    }
   }
 }

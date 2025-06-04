@@ -114,7 +114,7 @@ class _FileSystemDebugPageState extends State<FileSystemDebugPage> {
                 
                 // Tabs
                 Container(
-                  color: Theme.of(context).primaryColor.withOpacity(0.1),
+                  color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
                   child: Row(
                     children: [
                       Expanded(
@@ -122,7 +122,7 @@ class _FileSystemDebugPageState extends State<FileSystemDebugPage> {
                           onPressed: () => setState(() => _selectedTabIndex = 0),
                           style: TextButton.styleFrom(
                             backgroundColor: _selectedTabIndex == 0 
-                                ? Theme.of(context).primaryColor.withOpacity(0.2)
+                                ? Theme.of(context).primaryColor.withValues(alpha: 0.2)
                                 : null,
                           ),
                           child: const Text('All Files'),
@@ -133,7 +133,7 @@ class _FileSystemDebugPageState extends State<FileSystemDebugPage> {
                           onPressed: () => setState(() => _selectedTabIndex = 1),
                           style: TextButton.styleFrom(
                             backgroundColor: _selectedTabIndex == 1 
-                                ? Theme.of(context).primaryColor.withOpacity(0.2)
+                                ? Theme.of(context).primaryColor.withValues(alpha: 0.2)
                                 : null,
                           ),
                           child: const Text('Product Images'),
