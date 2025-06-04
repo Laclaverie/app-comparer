@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:client_price_comparer/pages/home_page.dart'; // Import MyHomePage
-import 'package:client_price_comparer/pages/debug_page.dart'; // Import DebugPage
+import 'package:client_price_comparer/pages/debug/debug_page.dart'; // Import DebugPage
+import 'package:client_price_comparer/pages/debug/debug_database.dart'; // Import DebugDatabasePage
+// lib
+import 'package:client_price_comparer/database/app_database.dart'; // Import AppDatabase
 
 void main() {
   runApp(const MyApp());
@@ -43,6 +46,7 @@ class _RootPageState extends State<RootPage> {
   static final List<Widget> _widgetOptionsDebug = <Widget>[
     ..._widgetOptionsBase,
     const DebugPage(), // Use imported DebugPage
+    DatabaseDebugPage(db: AppDatabase()), // Use imported DatabaseDebugPage
   ];
 
   void _onItemTapped(int index) {
@@ -67,6 +71,11 @@ class _RootPageState extends State<RootPage> {
           icon: Icon(Icons.bug_report),
           label: 'Debug',
         ),
+      if (!kReleaseMode) // Conditionally add the database debug tab
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.storage),
+        label: 'Database Debug',
+      ),
     ];
 
     return Scaffold(

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../camera/barcode_scanner_widget.dart';
+import '../../camera/barcode_scanner_widget.dart';
 
 class DebugPage extends StatefulWidget {
   const DebugPage({super.key});
