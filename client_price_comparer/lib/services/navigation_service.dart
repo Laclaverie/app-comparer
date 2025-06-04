@@ -21,7 +21,17 @@ class NavigationService {
     return kReleaseMode ? _getReleaseNavItems() : _getDebugNavItems();
   }
 
-  /// Get pages for release mode
+  /// Check if the given index is valid for the current mode
+  bool isValidIndex(int index) {
+    return index >= 0 && index < getPages().length;
+  }
+
+  /// Get the maximum index for the current mode
+  int getMaxIndex() {
+    return getPages().length - 1;
+  }
+
+  // Private helper methods
   List<Widget> _getReleasePages() {
     return [
       const MyHomePage(title: 'Flutter Demo Home Page'),
@@ -29,7 +39,6 @@ class NavigationService {
     ];
   }
 
-  /// Get pages for debug mode (includes release pages + debug pages)
   List<Widget> _getDebugPages() {
     return [
       ..._getReleasePages(),
@@ -38,7 +47,6 @@ class NavigationService {
     ];
   }
 
-  /// Get navigation items for release mode
   List<BottomNavigationBarItem> _getReleaseNavItems() {
     return const [
       BottomNavigationBarItem(
@@ -52,7 +60,6 @@ class NavigationService {
     ];
   }
 
-  /// Get navigation items for debug mode
   List<BottomNavigationBarItem> _getDebugNavItems() {
     return [
       ..._getReleaseNavItems(),
@@ -65,15 +72,5 @@ class NavigationService {
         label: 'Database Debug',
       ),
     ];
-  }
-
-  /// Check if the given index is valid for the current mode
-  bool isValidIndex(int index) {
-    return index >= 0 && index < getPages().length;
-  }
-
-  /// Get the maximum index for the current mode
-  int getMaxIndex() {
-    return getPages().length - 1;
   }
 }

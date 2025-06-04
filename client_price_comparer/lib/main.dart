@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:client_price_comparer/database/app_database.dart';
-import 'package:client_price_comparer/services/navigation_service.dart';
+import 'package:client_price_comparer/controllers/app_controller.dart';
 
 void main() {
   runApp(const MyApp());
@@ -31,17 +30,16 @@ class RootPage extends StatefulWidget {
 
 class _RootPageState extends State<RootPage> {
   int _selectedIndex = 0;
-  late final NavigationService _navigationService;
-  static final AppDatabase _database = AppDatabase();
+  late final AppController _appController;
 
   @override
   void initState() {
     super.initState();
-    _navigationService = NavigationService(_database);
+    _appController = AppController();
   }
 
   void _onItemTapped(int index) {
-    if (_navigationService.isValidIndex(index)) {
+    if (_appController.isValidNavigationIndex(index)) {
       setState(() {
         _selectedIndex = index;
       });
@@ -50,8 +48,8 @@ class _RootPageState extends State<RootPage> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = _navigationService.getPages();
-    final navItems = _navigationService.getNavigationItems();
+    final pages = _appController.navigationService.getPages();
+    final navItems = _appController.navigationService.getNavigationItems();
 
     return Scaffold(
       body: Center(
@@ -70,7 +68,7 @@ class _RootPageState extends State<RootPage> {
 
   @override
   void dispose() {
-    _database.close();
+    _appController.dispose();
     super.dispose();
   }
 }
