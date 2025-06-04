@@ -24,6 +24,19 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget> {
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(BarcodeScannerWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reinitialize camera if widget is rebuilt
+    if (widget.key != oldWidget.key) {
+      _initializeCamera();
+    }
+  }
+
+  void _initializeCamera() {
+    _scannerController.dispose();
+    _scannerController.start();
+  }
 
   void _handleBarcodeDetection(BarcodeCapture capture) {
     if (!_isScannerActive || capture.barcodes.isEmpty) return;

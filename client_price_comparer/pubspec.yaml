@@ -43,6 +43,9 @@ dependencies:
   build_runner: ^2.4.15
   sqflite_sqlcipher: ^3.1.0+1
   drift_sqflite: ^2.0.1
+  camera: ^0.11.1
+  image: ^4.5.4
+  permission_handler: ^12.0.0+1
 
 dev_dependencies:
   flutter_test:

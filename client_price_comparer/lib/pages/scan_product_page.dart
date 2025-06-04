@@ -1,3 +1,4 @@
+import 'package:client_price_comparer/services/camera_service.dart';
 import 'package:flutter/material.dart';
 import 'package:client_price_comparer/camera/barcode_scanner_widget.dart';
 import 'package:client_price_comparer/database/app_database.dart';
@@ -12,7 +13,7 @@ class ScanProductPage extends StatefulWidget {
   State<ScanProductPage> createState() => _ScanProductPageState();
 }
 
-class _ScanProductPageState extends State<ScanProductPage> {
+class _ScanProductPageState extends State<ScanProductPage> with WidgetsBindingObserver {
   late final ProductService _productService;
   String? _scannedBarcode;
   bool _isScanning = true;
@@ -21,6 +22,34 @@ class _ScanProductPageState extends State<ScanProductPage> {
   void initState() {
     super.initState();
     _productService = ProductService(widget.db);
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    // Dispose camera when leaving scan page completely
+    CameraService.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Handle app lifecycle changes for camera
+    if (state == AppLifecycleState.resumed && _isScanning) {
+      // Reinitialize camera when app resumes
+      _reinitializeCamera();
+    } else if (state == AppLifecycleState.paused) {
+      // Camera automatically pauses
+    }
+  }
+
+  Future<void> _reinitializeCamera() async {
+    // Force camera reinitialization
+    await CameraService.dispose();
+    setState(() {
+      // Trigger camera widget rebuild
+    });
   }
 
   void _onBarcodeScanned(String barcode) {
@@ -96,10 +125,17 @@ class _ScanProductPageState extends State<ScanProductPage> {
     _showSuccessMessage('Added to search queue. You\'ll be notified when found!');
   }
 
-  Future<void> _handleRegisterProduct(String barcode) async {
-    await _productService.startProductRegistration(barcode);
-    // TODO: Navigate to registration form
-    _showSuccessMessage('Starting product registration...');
+  void _handleRegisterProduct(String barcode) async {
+    final bool? registered = await _productService.navigateToProductRegistration(context, barcode);
+    
+    if (registered == true) {
+      // Product was successfully registered
+      _showSuccessMessage('Product registered successfully!');
+      _resetScanner(); // This will reinitialize the camera
+    } else {
+      // User cancelled or registration failed
+      _resetScanner(); // Still reset to get back to scanning
+    }
   }
 
   void _showError(String message) {
@@ -121,6 +157,8 @@ class _ScanProductPageState extends State<ScanProductPage> {
       _scannedBarcode = null;
       _isScanning = true;
     });
+    // Reinitialize camera when resetting scanner
+    _reinitializeCamera();
   }
 
   @override
@@ -140,7 +178,9 @@ class _ScanProductPageState extends State<ScanProductPage> {
         children: [
           if (_isScanning)
             Expanded(
+              // Use a key to force widget rebuild when camera needs reinitialization
               child: BarcodeScannerWidget(
+                key: ValueKey(_scannedBarcode ?? 'scanning'), // Add this key
                 onBarcodeScanned: _onBarcodeScanned,
               ),
             )

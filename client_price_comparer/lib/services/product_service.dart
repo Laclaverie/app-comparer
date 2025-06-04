@@ -1,5 +1,9 @@
-import 'package:client_price_comparer/database/app_database.dart';
+import 'package:client_price_comparer/database/app_database.dart' as db;
+import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:client_price_comparer/pages/product_registration_page.dart';
+import 'package:client_price_comparer/pages/camera_capture_page.dart';
 
 enum ProductSearchResult {
   found,
@@ -9,7 +13,7 @@ enum ProductSearchResult {
 
 class ProductSearchResponse {
   final ProductSearchResult result;
-  final Product? product;
+  final db.Product? product;
   final String? errorMessage;
 
   ProductSearchResponse({
@@ -20,17 +24,15 @@ class ProductSearchResponse {
 }
 
 class ProductService {
-  final AppDatabase _db;
+  final db.AppDatabase _db;
 
   ProductService(this._db);
 
   /// Search for a product by barcode in the local database
   Future<ProductSearchResponse> searchProductByBarcode(String barcode) async {
     try {
-      // Convert string barcode to int
       final barcodeInt = int.parse(barcode);
       
-      // Search for product in local database
       final product = await (_db.select(_db.products)
           ..where((tbl) => tbl.barcode.equals(barcodeInt)))
           .getSingleOrNull();
@@ -55,18 +57,70 @@ class ProductService {
 
   /// Add product to priority search queue (for offline search)
   Future<void> addToPrioritySearchQueue(String barcode) async {
-    // TODO: Implement priority search queue logic
-    // This could be a separate table in your database
-    if (kDebugMode){
-      print('Adding barcode $barcode to priority search queue');
+    if (kDebugMode) {
+      print('Added barcode $barcode to priority search queue');
     }
   }
 
-  /// Start product registration flow
-  Future<void> startProductRegistration(String barcode) async {
-    // TODO: Implement product registration logic
-    if (kDebugMode) {
-    print('Starting product registration for barcode: $barcode');
-    }
+  /// Navigate to product registration page
+  Future<bool?> navigateToProductRegistration(BuildContext context, String barcode) async {
+    final bool? result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProductRegistrationPage(
+          appDatabase: _db,
+          barcode: barcode,
+        ),
+      ),
+    );
+    return result;
+  }
+
+  /// Navigate to camera capture page
+  Future<String?> navigateToCameraCapture(BuildContext context, String barcode) async {
+    final String? imagePath = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CameraCaptureePage(barcode: barcode),
+      ),
+    );
+    return imagePath;
+  }
+
+  /// Load brands from database
+  Future<List<db.Brand>> loadBrands() async {
+    return await _db.select(_db.brands).get();
+  }
+
+  /// Load categories from database  
+  Future<List<db.Category>> loadCategories() async {
+    return await _db.select(_db.categories).get();
+  }
+
+  /// Save a new product to database
+  Future<void> saveProduct({
+    required String barcode,
+    required String name,
+    int? brandId,
+    int? categoryId,
+    String? description,
+    String? imageUrl,
+  }) async {
+    final barcodeInt = int.parse(barcode);
+    
+    final product = db.ProductsCompanion(
+      barcode: Value(barcodeInt),
+      name: Value(name.trim()),
+      brandId: brandId != null ? Value(brandId) : const Value.absent(),
+      categoryId: categoryId != null ? Value(categoryId) : const Value.absent(),
+      imageUrl: imageUrl != null && imageUrl.trim().isNotEmpty 
+          ? Value(imageUrl.trim()) 
+          : const Value.absent(),
+      description: description != null && description.trim().isNotEmpty 
+          ? Value(description.trim()) 
+          : const Value.absent(),
+    );
+    
+    await _db.into(_db.products).insert(product);
   }
 }
