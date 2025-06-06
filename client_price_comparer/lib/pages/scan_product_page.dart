@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:client_price_comparer/camera/barcode_scanner_widget.dart';
 import 'package:client_price_comparer/database/app_database.dart';
 import 'package:client_price_comparer/services/product_service.dart';
+import 'package:client_price_comparer/pages/product_details_page.dart';
 
 class ScanProductPage extends StatefulWidget {
   final AppDatabase db;
@@ -78,20 +79,20 @@ class _ScanProductPageState extends State<ScanProductPage> with WidgetsBindingOb
   }
 
   void _showProductFound(Product product) {
-    // TODO: Navigate to product details page (Step 2)
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Product Found!'),
-        content: Text('Product: ${product.name}\nBarcode: ${product.barcode}'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
+    // Navigate to product details page
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProductDetailsPage(
+          product: product,
+          database: widget.db,
+          fromNotification: false,
+        ),
       ),
-    );
+    ).then((_) {
+      // When user comes back from product details, reset scanner
+      _resetScanner();
+    });
   }
 
   void _showProductNotFound(String barcode) {
