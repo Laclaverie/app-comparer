@@ -1,13 +1,21 @@
+import 'package:json_annotation/json_annotation.dart';
 import 'promotion_type.dart';
+
+part 'price_promotion.g.dart';
 
 /// Represents a promotional offer applied to a product price
 /// Contains promotion details, validity periods, and parameters for different discount types
 /// Used to calculate effective prices and display promotional information to users
+@JsonSerializable()
 class PricePromotion {
   final PromotionType type;
   final String description;
   final Map<String, dynamic> parameters;
+  
+  @JsonKey(name: 'valid_from')
   final DateTime? validFrom;
+  
+  @JsonKey(name: 'valid_to')
   final DateTime? validTo;
 
   PricePromotion({
@@ -18,26 +26,6 @@ class PricePromotion {
     this.validTo,
   });
 
-  factory PricePromotion.fromJson(Map<String, dynamic> json) {
-    return PricePromotion(
-      type: PromotionType.values.firstWhere(
-        (e) => e.toString().split('.').last == json['type'],
-        orElse: () => PromotionType.percentageDiscount,
-      ),
-      description: json['description'],
-      parameters: Map<String, dynamic>.from(json['parameters'] ?? {}),
-      validFrom: json['validFrom'] != null ? DateTime.parse(json['validFrom']) : null,
-      validTo: json['validTo'] != null ? DateTime.parse(json['validTo']) : null,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'type': type.toString().split('.').last,
-      'description': description,
-      'parameters': parameters,
-      'validFrom': validFrom?.toIso8601String(),
-      'validTo': validTo?.toIso8601String(),
-    };
-  }
+  factory PricePromotion.fromJson(Map<String, dynamic> json) => _$PricePromotionFromJson(json);
+  Map<String, dynamic> toJson() => _$PricePromotionToJson(this);
 }

@@ -1,22 +1,46 @@
+import 'package:json_annotation/json_annotation.dart';
+
+part 'price_trend.g.dart';
+
 /// Defines the possible directions a price trend can take over time
 enum TrendDirection {
+  @JsonValue('increasing')
   increasing,
+  
+  @JsonValue('decreasing')
   decreasing,
+  
+  @JsonValue('stable')
   stable,
+  
+  @JsonValue('volatile')
   volatile,
 }
 
 /// Represents price movement analysis over a specific time period
 /// Tracks direction, magnitude, and strength of price changes for trend analysis
 /// Used to help users understand if prices are going up, down, or remaining stable
+@JsonSerializable()
 class PriceTrend {
   final TrendDirection direction;
+  
+  @JsonKey(name: 'change_amount')
   final double changeAmount;
+  
+  @JsonKey(name: 'change_percentage')
   final double changePercentage;
+  
+  @JsonKey(name: 'start_date')
   final DateTime startDate;
+  
+  @JsonKey(name: 'end_date')
   final DateTime endDate;
+  
+  @JsonKey(name: 'historical_prices')
   final List<double> historicalPrices;
-  final double trendStrength; // 0.0 to 1.0, how strong the trend is
+  
+  @JsonKey(name: 'trend_strength')
+  final double trendStrength;
 
   PriceTrend({
     required this.direction,
@@ -47,4 +71,7 @@ class PriceTrend {
 
   /// Get trend duration in days
   int get durationInDays => endDate.difference(startDate).inDays;
+
+  factory PriceTrend.fromJson(Map<String, dynamic> json) => _$PriceTrendFromJson(json);
+  Map<String, dynamic> toJson() => _$PriceTrendToJson(this);
 }

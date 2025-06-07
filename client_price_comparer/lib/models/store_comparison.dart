@@ -1,11 +1,24 @@
+import 'package:json_annotation/json_annotation.dart';
+
+part 'store_comparison.g.dart';
+
 /// Represents a comparison analysis between a store's price and market averages
 /// Provides ranking, savings calculations, and formatted descriptions for UI display
 /// Used to help users understand how each store's deal compares to the market
+@JsonSerializable()
 class StoreComparison {
+  @JsonKey(name: 'store_name')
   final String storeName;
+
+  @JsonKey(name: 'effective_price')
   final double effectivePrice;
+
+  @JsonKey(name: 'savings_from_average')
   final double savingsFromAverage;
+
+  @JsonKey(name: 'savings_percentage')
   final double savingsPercentage;
+
   int rank;
 
   StoreComparison({
@@ -43,4 +56,7 @@ class StoreComparison {
         return '${rank}th';
     }
   }
+
+  factory StoreComparison.fromJson(Map<String, dynamic> json) => _$StoreComparisonFromJson(json);
+  Map<String, dynamic> toJson() => _$StoreComparisonToJson(this);
 }
