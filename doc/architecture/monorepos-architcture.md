@@ -1,3 +1,4 @@
+```
 your-app/
 ├── packages/                            # 📦 Packages Dart réutilisables
 │   ├── shared_models/                  # Modèles de données partagés entre client & serveur
@@ -92,3 +93,4 @@ your-app/
 ├── .gitignore
 ├── README.md
 └── pubspec.yaml                        # Racine : éventuellement un mono-repo géré via `melos`
+```
