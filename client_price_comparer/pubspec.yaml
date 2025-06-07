@@ -40,12 +40,12 @@ dependencies:
   path_provider: ^2.1.5
   path: ^1.9.1
   drift_dev: ^2.26.1
-  build_runner: ^2.4.15
   sqflite_sqlcipher: ^3.1.0+1
   drift_sqflite: ^2.0.1
   camera: ^0.11.1
   image: ^4.5.4
   permission_handler: ^12.0.0+1
+  json_annotation: ^4.9.0
 
 dev_dependencies:
   flutter_test:
@@ -58,6 +58,8 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  json_serializable: ^6.9.5
+  build_runner: ^2.4.15
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
