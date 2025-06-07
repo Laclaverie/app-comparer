@@ -1,3 +1,6 @@
+/// Represents a historical price data point at a specific date and store
+/// Used for tracking price changes over time and building price history charts
+/// Contains timestamp, price value, store information, and any active promotions
 class PricePoint {
   final DateTime date;
   final double price;
@@ -38,6 +41,8 @@ class PricePoint {
   }
 }
 
+/// Defines the different types of promotional offers available
+/// Each type represents a different discount mechanism with specific parameters
 enum PromotionType {
   percentageDiscount,     // 20% off
   fixedDiscount,         // €2 off
@@ -46,6 +51,9 @@ enum PromotionType {
   multipleQuantity,      // 3 for €10
 }
 
+/// Represents a promotional offer applied to a product price
+/// Contains promotion details, validity periods, and parameters for different discount types
+/// Used to calculate effective prices and display promotional information to users
 class PricePromotion {
   final PromotionType type;
   final String description;
@@ -198,6 +206,9 @@ class PricePromotion {
   }
 }
 
+/// Represents a product price at a specific store with promotion and timestamp information
+/// Core data model for price comparison functionality across different retailers
+/// Tracks current user's store preference and promotional offers
 class StorePrice {
   final String storeName;
   final double price;
@@ -251,6 +262,9 @@ class StorePrice {
   }
 }
 
+/// Contains comprehensive statistical analysis of product prices across multiple stores
+/// Provides essential metrics like averages, variance, and price volatility indicators
+/// Used for market analysis, price trend detection, and helping users understand deal quality
 class ProductStatistics {
   final double averagePrice;
   final double medianPrice;
@@ -287,6 +301,8 @@ class ProductStatistics {
   }
 }
 
+/// Defines display modes for product information in the user interface
+/// Controls the level of detail shown to users based on their preferences
 enum ProductDisplayMode {
   minimal,
   advanced,

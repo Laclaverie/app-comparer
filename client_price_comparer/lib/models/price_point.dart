@@ -1,5 +1,8 @@
 import 'price_promotion.dart';
 
+/// Represents a historical price data point at a specific date and store
+/// Used for tracking price changes over time and building price history charts
+/// Contains timestamp, price value, store information, and any active promotions
 class PricePoint {
   final DateTime date;
   final double price;

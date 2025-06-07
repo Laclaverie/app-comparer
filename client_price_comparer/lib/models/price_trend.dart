@@ -1,3 +1,4 @@
+/// Defines the possible directions a price trend can take over time
 enum TrendDirection {
   increasing,
   decreasing,
@@ -5,6 +6,9 @@ enum TrendDirection {
   volatile,
 }
 
+/// Represents price movement analysis over a specific time period
+/// Tracks direction, magnitude, and strength of price changes for trend analysis
+/// Used to help users understand if prices are going up, down, or remaining stable
 class PriceTrend {
   final TrendDirection direction;
   final double changeAmount;

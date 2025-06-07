@@ -1,5 +1,8 @@
 import 'promotion_type.dart';
 
+/// Represents a promotional offer applied to a product price
+/// Contains promotion details, validity periods, and parameters for different discount types
+/// Used to calculate effective prices and display promotional information to users
 class PricePromotion {
   final PromotionType type;
   final String description;

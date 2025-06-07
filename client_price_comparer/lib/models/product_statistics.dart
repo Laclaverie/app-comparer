@@ -1,5 +1,8 @@
 import 'store_price.dart';
 
+/// Contains comprehensive statistical analysis of product prices across multiple stores
+/// Provides essential metrics like averages, variance, and price volatility indicators
+/// Used for market analysis, price trend detection, and helping users understand deal quality
 class ProductStatistics {
   final double averagePrice;
   final double medianPrice;

@@ -1,6 +1,9 @@
 import 'package:client_price_comparer/database/app_database.dart';
 import 'package:client_price_comparer/models/price_models.dart';
 
+/// Provides comprehensive product information and analysis services
+/// Handles price history, store comparisons, statistics, and user actions like favorites
+/// Integrates with database operations and promotion calculations
 class ProductDetailsService {
   final AppDatabase _database;
 

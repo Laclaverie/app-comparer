@@ -1,6 +1,9 @@
 import '../models/store_price.dart';
 import 'promotion_calculator.dart';
 
+/// Provides price calculation utilities for store prices with promotion support
+/// Handles effective price calculations, savings analysis, and price comparisons
+/// Integrates with promotion calculator to determine real costs for consumers
 class PriceCalculator {
   /// Get the effective price for a store, considering promotions
   static double getEffectivePrice(StorePrice storePrice) {

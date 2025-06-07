@@ -1,6 +1,9 @@
 import 'price_promotion.dart';
 import 'promotion_type.dart';
 
+/// Handles all promotion-related calculations and validation logic
+/// Provides methods to calculate effective prices, validate promotion periods,
+/// and determine minimum quantities required for promotional deals
 class PromotionCalculator {
   static double calculateEffectivePrice(PricePromotion promotion, double basePrice) {
     switch (promotion.type) {

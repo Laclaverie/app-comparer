@@ -1,3 +1,6 @@
+/// Represents a comparison analysis between a store's price and market averages
+/// Provides ranking, savings calculations, and formatted descriptions for UI display
+/// Used to help users understand how each store's deal compares to the market
 class StoreComparison {
   final String storeName;
   final double effectivePrice;

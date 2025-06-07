@@ -6,12 +6,15 @@ import 'package:flutter/material.dart';
 import 'package:client_price_comparer/pages/product_registration_page.dart';
 import 'package:client_price_comparer/pages/camera_capture_page.dart';
 
+/// Defines the possible results when searching for a product by barcode
 enum ProductSearchResult {
   found,
   notFound,
   invalidBarcode,
 }
 
+/// Response wrapper for product search operations
+/// Contains the search result status, product data if found, and error information
 class ProductSearchResponse {
   final ProductSearchResult result;
   final db.Product? product;
@@ -24,6 +27,9 @@ class ProductSearchResponse {
   });
 }
 
+/// Handles all product-related operations including search, registration, and management
+/// Provides barcode lookup, navigation to product registration, and database operations
+/// Integrates with camera capture and file system services for complete product workflow
 class ProductService {
   final db.AppDatabase _db;
 

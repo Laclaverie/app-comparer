@@ -1,5 +1,8 @@
 import 'price_promotion.dart';
 
+/// Represents a product price at a specific store with promotion and timestamp information
+/// Core data model for price comparison functionality across different retailers
+/// Tracks current user's store preference and promotional offers
 class StorePrice {
   final String storeName;
   final double price;

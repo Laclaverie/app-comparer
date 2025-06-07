@@ -6,6 +6,9 @@ import '../models/price_distribution.dart';
 import '../models/store_comparison.dart';
 import 'price_calculator.dart';
 
+/// Provides comprehensive statistical analysis and calculations for product pricing data
+/// Handles price distribution analysis, trend calculations, and store comparisons
+/// Used to generate insights and help users make informed purchasing decisions
 class ProductStatisticsService {
   /// Calculate comprehensive statistics for a list of store prices
   static ProductStatistics calculateStatistics(List<StorePrice> storePrices) {
@@ -141,37 +144,37 @@ class ProductStatisticsService {
   }
 
   static List<PriceRange> _createPriceRanges(List<double> prices) {
-  if (prices.isEmpty) return [];
-  
-  final sorted = List<double>.from(prices)..sort();
-  final min = sorted.first;
-  final max = sorted.last;
-  final range = max - min;
-  
-  // Create 5 equal ranges
-  const rangeCount = 5;
-  final rangeSize = range / rangeCount;
-  
-  final ranges = <PriceRange>[];
-  
-  for (int i = 0; i < rangeCount; i++) {
-    final rangeMin = min + (i * rangeSize);
-    final rangeMax = i == rangeCount - 1 ? max : min + ((i + 1) * rangeSize);
+    if (prices.isEmpty) return [];
     
-    final count = prices.where((price) => 
-      price >= rangeMin && (i == rangeCount - 1 ? price <= rangeMax : price < rangeMax)
-    ).length;
+    final sorted = List<double>.from(prices)..sort();
+    final min = sorted.first;
+    final max = sorted.last;
+    final range = max - min;
     
-    final percentage = (count / prices.length) * 100;
+    // Create 5 equal ranges
+    const rangeCount = 5;
+    final rangeSize = range / rangeCount;
     
-    ranges.add(PriceRange(
-      min: rangeMin,
-      max: rangeMax,
-      count: count,
-      percentage: percentage,
-    ));
+    final ranges = <PriceRange>[];
+    
+    for (int i = 0; i < rangeCount; i++) {
+      final rangeMin = min + (i * rangeSize);
+      final rangeMax = i == rangeCount - 1 ? max : min + ((i + 1) * rangeSize);
+      
+      final count = prices.where((price) => 
+        price >= rangeMin && (i == rangeCount - 1 ? price <= rangeMax : price < rangeMax)
+      ).length;
+      
+      final percentage = (count / prices.length) * 100;
+      
+      ranges.add(PriceRange(
+        min: rangeMin,
+        max: rangeMax,
+        count: count,
+        percentage: percentage,
+      ));
+    }
+    
+    return ranges;
   }
-  
-  return ranges;
-}
 }
