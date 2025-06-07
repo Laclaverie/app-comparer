@@ -63,6 +63,48 @@ class ProductStatistics {
   /// Get coefficient of variation (standardDeviation / mean)
   double get coefficientOfVariation => standardDeviation / averagePrice;
 
+  /// Get explanation for the best deal
+  String get bestDealExplanation {
+    if (bestDeal.promotion == null || !bestDeal.promotion!.isValid) {
+      return 'Regular price: €${bestDeal.price.toStringAsFixed(2)} at ${bestDeal.storeName}';
+    }
+    
+    return '${bestDeal.promotion!.getPromotionExplanation(bestDeal.price)} at ${bestDeal.storeName}';
+  }
+
+  /// Get explanation for the worst deal
+  String get worstDealExplanation {
+    if (worstDeal.promotion == null || !worstDeal.promotion!.isValid) {
+      return 'Regular price: €${worstDeal.price.toStringAsFixed(2)} at ${worstDeal.storeName}';
+    }
+    
+    return 'Even with promotion (${worstDeal.promotion!.description}): €${worstDeal.effectivePrice.toStringAsFixed(2)} at ${worstDeal.storeName}';
+  }
+
+  /// Get market analysis summary
+  String get marketAnalysisSummary {
+    if (isVolatile) {
+      return 'High price variation detected (${priceSpreadPercentage.toStringAsFixed(1)}% spread)';
+    } else {
+      return 'Stable pricing across stores (${priceSpreadPercentage.toStringAsFixed(1)}% spread)';
+    }
+  }
+
+  /// Get deal quality assessment
+  String get dealQuality {
+    final savingsVsAverage = ((averagePrice - bestDeal.effectivePrice) / averagePrice) * 100;
+    
+    if (savingsVsAverage > 20) {
+      return 'Excellent deal - ${savingsVsAverage.toStringAsFixed(1)}% below average';
+    } else if (savingsVsAverage > 10) {
+      return 'Good deal - ${savingsVsAverage.toStringAsFixed(1)}% below average';
+    } else if (savingsVsAverage > 0) {
+      return 'Fair deal - ${savingsVsAverage.toStringAsFixed(1)}% below average';
+    } else {
+      return 'Above average price';
+    }
+  }
+
   factory ProductStatistics.fromJson(Map<String, dynamic> json) => _$ProductStatisticsFromJson(json);
   Map<String, dynamic> toJson() => _$ProductStatisticsToJson(this);
 }

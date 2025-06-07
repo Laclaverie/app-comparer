@@ -10,6 +10,8 @@ import 'package:client_price_comparer/widgets/product_details/store_comparison_w
 // models
 import 'package:client_price_comparer/models/store_price.dart';
 import 'package:client_price_comparer/models/price_models.dart';
+import 'package:client_price_comparer/models/price_point.dart';
+import 'package:client_price_comparer/models/product_statistics.dart';
 
 class ProductDetailsPage extends StatefulWidget {
   final Product product;

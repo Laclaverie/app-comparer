@@ -1,9 +1,12 @@
-import 'package:client_price_comparer/database/app_database.dart';
-import 'package:client_price_comparer/models/price_models.dart';
+import 'dart:math' show sqrt;
 
+import 'package:client_price_comparer/database/app_database.dart';
+
+import 'package:client_price_comparer/models/price_point.dart';
 import 'package:client_price_comparer/models/store_price.dart';
 import 'package:client_price_comparer/models/price_promotion.dart';
 import 'package:client_price_comparer/models/promotion_type.dart';
+import 'package:client_price_comparer/models/product_statistics.dart';
 
 /// Provides comprehensive product information and analysis services
 /// Handles price history, store comparisons, statistics, and user actions like favorites
@@ -47,6 +50,9 @@ class ProductDetailsService {
     final variance = effectivePrices.map((p) => (p - averagePrice) * (p - averagePrice))
         .reduce((a, b) => a + b) / effectivePrices.length;
 
+    // Calculate standard deviation
+    final standardDeviation = sqrt(variance);
+
     // Sort stores by effective price for best/worst deals
     final sortedStores = List<StorePrice>.from(storePrices)
       ..sort((a, b) => a.effectivePrice.compareTo(b.effectivePrice));
@@ -57,8 +63,11 @@ class ProductDetailsService {
       minPrice: minPrice,
       maxPrice: maxPrice,
       priceVariance: variance,
+      standardDeviation: standardDeviation,
       bestDeal: sortedStores.first,
       worstDeal: sortedStores.last,
+      allPrices: storePrices,
+      calculatedAt: DateTime.now(),
     );
   }
 
