@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:client_price_comparer/database/app_database.dart';
-import 'package:client_price_comparer/models/price_models.dart';
+// services
 import 'package:client_price_comparer/services/product_details_service.dart';
+// widgets
 import 'package:client_price_comparer/widgets/product_details/product_header_widget.dart';
 import 'package:client_price_comparer/widgets/product_details/product_current_price_widget.dart';
 import 'package:client_price_comparer/widgets/product_details/price_chart_widget.dart';
 import 'package:client_price_comparer/widgets/product_details/store_comparison_widget.dart';
+// models
+import 'package:client_price_comparer/models/store_price.dart';
+import 'package:client_price_comparer/models/price_models.dart';
 
 class ProductDetailsPage extends StatefulWidget {
   final Product product;

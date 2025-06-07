@@ -30,6 +30,57 @@ class StorePrice {
     this.promotion,
   });
 
+  /// Get the effective price considering promotions
+  double get effectivePrice {
+    if (promotion == null || !promotion!.isValid) return price;
+    return promotion!.calculateEffectivePrice(price);
+  }
+
+  /// Get the best deal description including promotion details
+  String get dealDescription {
+    if (promotion == null || !promotion!.isValid) {
+      return '€${price.toStringAsFixed(2)} at $storeName';
+    }
+    
+    return '€${effectivePrice.toStringAsFixed(2)} at $storeName (${promotion!.description})';
+  }
+
+  /// Get savings amount compared to regular price
+  double get savingsAmount {
+    return price - effectivePrice;
+  }
+
+  /// Get savings percentage compared to regular price
+  double get savingsPercentage {
+    if (price == 0) return 0;
+    return (savingsAmount / price) * 100;
+  }
+
+  /// Check if this store price has an active promotion
+  bool get hasActivePromotion {
+    return promotion != null && promotion!.isValid;
+  }
+
+  /// Get promotion description or empty string if no promotion
+  String get promotionDescription {
+    if (!hasActivePromotion) return '';
+    return promotion!.description;
+  }
+
+  /// Get detailed price breakdown including promotion info
+  String get priceBreakdown {
+    if (!hasActivePromotion) {
+      return 'Regular price: €${price.toStringAsFixed(2)}';
+    }
+    
+    final savings = savingsAmount;
+    if (savings > 0) {
+      return 'Original: €${price.toStringAsFixed(2)} → €${effectivePrice.toStringAsFixed(2)} (Save €${savings.toStringAsFixed(2)})';
+    } else {
+      return 'Special price: €${effectivePrice.toStringAsFixed(2)}';
+    }
+  }
+
   factory StorePrice.fromJson(Map<String, dynamic> json) => _$StorePriceFromJson(json);
   Map<String, dynamic> toJson() => _$StorePriceToJson(this);
 }

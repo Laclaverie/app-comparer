@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:client_price_comparer/models/price_models.dart';
 import 'package:client_price_comparer/widgets/product_details/unit_price_display_widget.dart';
+import 'package:client_price_comparer/models/store_price.dart';
 
 class StoreComparisonWidget extends StatelessWidget {
   final List<StorePrice> storePrices;

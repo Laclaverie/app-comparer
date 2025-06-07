@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:client_price_comparer/models/price_models.dart';
+import 'package:client_price_comparer/models/store_price.dart';
 
 class UnitPriceDisplayWidget extends StatelessWidget {
   final StorePrice storePrice;
