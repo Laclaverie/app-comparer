@@ -50,3 +50,6 @@ app.*.map.json
 
 # personal files
 /personnal-do-not-commit
+
+# vscode
+/.vscode
