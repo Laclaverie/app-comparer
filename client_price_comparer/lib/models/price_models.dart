@@ -171,7 +171,6 @@ class PricePromotion {
 
   /// Get simple promotion explanation for unit price
   String getPromotionExplanation(double basePrice) {
-    final effectivePrice = calculateEffectivePrice(basePrice);
     final savingsPercentage = getSavingsPercentage(basePrice);
 
     switch (type) {
