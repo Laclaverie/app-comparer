@@ -1,6 +1,6 @@
 import 'package:test/test.dart';
-import 'package:client_price_comparer/models/price_point.dart';
-import 'package:client_price_comparer/models/price_promotion.dart';
+import 'package:client_price_comparer/models/price/price_point.dart';
+import 'package:client_price_comparer/models/price/price_promotion.dart';
 
 void main() {
   group('PricePoint', () {

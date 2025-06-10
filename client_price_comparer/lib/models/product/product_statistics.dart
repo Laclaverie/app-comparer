@@ -1,5 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
-import 'store_price.dart';
+import '../store/store_price.dart';
 
 part 'product_statistics.g.dart';
 

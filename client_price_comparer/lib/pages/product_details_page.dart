@@ -8,10 +8,10 @@ import 'package:client_price_comparer/widgets/product_details/product_current_pr
 import 'package:client_price_comparer/widgets/product_details/price_chart_widget.dart';
 import 'package:client_price_comparer/widgets/product_details/store_comparison_widget.dart';
 // models
-import 'package:client_price_comparer/models/store_price.dart';
-import 'package:client_price_comparer/models/price_models.dart';
-import 'package:client_price_comparer/models/price_point.dart';
-import 'package:client_price_comparer/models/product_statistics.dart';
+import 'package:client_price_comparer/models/store/store_price.dart';
+import 'package:client_price_comparer/models/price/price_models.dart';
+import 'package:client_price_comparer/models/price/price_point.dart';
+import 'package:client_price_comparer/models/product/product_statistics.dart';
 
 class ProductDetailsPage extends StatefulWidget {
   final Product product;

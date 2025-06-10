@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:client_price_comparer/models/price_promotion.dart';
-import 'package:client_price_comparer/models/promotion_type.dart';
+import 'package:client_price_comparer/models/price/price_promotion.dart';
+import 'package:client_price_comparer/models/promotion/promotion_type.dart';
 
 void main() {
   group('PricePromotion', () {

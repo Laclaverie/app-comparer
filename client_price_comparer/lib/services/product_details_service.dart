@@ -2,11 +2,11 @@ import 'dart:math' show sqrt;
 
 import 'package:client_price_comparer/database/app_database.dart';
 
-import 'package:client_price_comparer/models/price_point.dart';
-import 'package:client_price_comparer/models/store_price.dart';
-import 'package:client_price_comparer/models/price_promotion.dart';
-import 'package:client_price_comparer/models/promotion_type.dart';
-import 'package:client_price_comparer/models/product_statistics.dart';
+import 'package:client_price_comparer/models/price/price_point.dart';
+import 'package:client_price_comparer/models/store/store_price.dart';
+import 'package:client_price_comparer/models/price/price_promotion.dart';
+import 'package:client_price_comparer/models/promotion/promotion_type.dart';
+import 'package:client_price_comparer/models/product/product_statistics.dart';
 
 /// Provides comprehensive product information and analysis services
 /// Handles price history, store comparisons, statistics, and user actions like favorites

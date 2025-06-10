@@ -1,5 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
-import 'promotion_type.dart';
+import '../promotion/promotion_type.dart';
 
 part 'price_promotion.g.dart';
 

@@ -1,5 +1,5 @@
-import '../models/price_promotion.dart';
-import '../models/promotion_type.dart';
+import '../models/price/price_promotion.dart';
+import '../models/promotion/promotion_type.dart';
 
 /// Handles all promotion-related calculations and validation logic
 /// Provides methods to calculate effective prices, validate promotion periods,

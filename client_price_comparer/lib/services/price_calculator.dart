@@ -1,4 +1,4 @@
-import '../models/store_price.dart';
+import '../models/store/store_price.dart';
 import 'promotion_calculator.dart';
 
 /// Provides price calculation utilities for store prices with promotion support

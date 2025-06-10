@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:client_price_comparer/models/price_point.dart';
+import 'package:client_price_comparer/models/price/price_point.dart';
 
 class PriceChartWidget extends StatelessWidget {
   final List<PricePoint> priceHistory;
