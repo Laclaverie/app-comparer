@@ -1,5 +1,5 @@
-import '../models/price/price_promotion.dart';
-import '../models/promotion/promotion_type.dart';
+import 'package:client_price_comparer/models/price/price_promotion.dart';
+import 'package:client_price_comparer/models/promotion/promotion_type.dart';
 
 /// Handles all promotion-related calculations and validation logic
 /// Provides methods to calculate effective prices, validate promotion periods,

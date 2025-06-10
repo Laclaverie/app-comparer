@@ -1,9 +1,9 @@
 import 'dart:math';
-import '../models/product/product_statistics.dart';
-import '../models/store/store_price.dart';
-import '../models/price/price_trend.dart';
-import '../models/price/price_distribution.dart';
-import '../models/store/store_comparison.dart';
+import 'package:client_price_comparer/models/product/product_statistics.dart';
+import 'package:client_price_comparer/models/store/store_price.dart';
+import 'package:client_price_comparer/models/price/price_trend.dart';
+import 'package:client_price_comparer/models/price/price_distribution.dart';
+import 'package:client_price_comparer/models/store/store_comparison.dart';
 import 'price_calculator.dart';
 
 /// Provides comprehensive statistical analysis and calculations for product pricing data
