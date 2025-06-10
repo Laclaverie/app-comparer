@@ -1,5 +1,0 @@
-enum ProductDisplayMode
-{
-  minimal,
-  advanced,
-}
