@@ -1,0 +1,15 @@
+name: shared_utils
+description: Shared utilities and constants
+version: 1.0.0
+publish_to: none  # This package is not published to pub.dev
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  shared_models:
+    path: ../shared_models
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter

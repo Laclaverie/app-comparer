@@ -1,0 +1,12 @@
+name: app_comparer_workspace
+description: "Monorepo for price comparison app"
+version: 1.0.0
+
+environment:
+  sdk: ^3.8.0
+
+dev_dependencies:
+  melos: ^6.0.0
+
+# This is a workspace root, no actual code here
+dependency_overrides: {}

@@ -1,0 +1,16 @@
+name: api_contracts
+description: API request and response contracts
+version: 1.0.0
+publish_to: none  # This package is not published to pub.dev
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  json_annotation: ^4.9.0
+  shared_models:
+    path: ../shared_models
+
+dev_dependencies:
+  build_runner: ^2.4.7
+  json_serializable: ^6.7.1

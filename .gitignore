@@ -7,6 +7,11 @@
 .buildlog/
 .history
 
+# IntelliJ related (like the .iml file you just saw)
+*.iml
+*.ipr
+*.iws
+.idea/
 
 
 # Flutter repo-specific
@@ -117,3 +122,24 @@ app.*.symbols
 !**/ios/**/default.perspectivev3
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
 !/dev/ci/**/Gemfile.lock
+
+# Python related (for your scrapers)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Docker
+docker-compose.override.yml
+
+# IDE specific
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+*.code-workspace
