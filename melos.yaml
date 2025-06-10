@@ -66,3 +66,19 @@ scripts:
       melos run build:apps
       melos run build:servers
     description: Build all projects in correct dependency order
+
+  dev:auto:
+    steps:
+      - echo "🏗️ Building shared packages..."
+      - melos run build:shared
+      - echo "🚀 Starting app..."
+      - melos exec --scope="client_price_comparer" -- "flutter run"
+
+  # Debug avec hot reload activé
+  debug:hot:
+    steps:
+      - echo "🏗️ Building shared packages..."
+      - melos run build:shared
+      - echo "🔥 Starting with hot reload..."
+      - melos exec --scope="client_price_comparer" -- "flutter run --debug --hot"
+    description: Debug mode with hot reload
