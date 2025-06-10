@@ -143,3 +143,7 @@ docker-compose.override.yml
 .vscode/launch.json
 .vscode/tasks.json
 *.code-workspace
+
+# melos
+**/pubspec_overrides.yaml
+pubspec_overrides.yaml
