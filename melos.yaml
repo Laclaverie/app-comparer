@@ -1,0 +1,84 @@
+# filepath: e:\ProjetPerso\app-comparer\melos.yaml
+name: app_comparer
+
+repository : https://github.com/Laclaverie/app-comparer.git
+
+packages:
+  - packages/**
+  - apps/**
+# note to myself, client_price_comparer have to be removed so NOT including it in melios
+command:
+  version:
+    # Generate commit links in package changelogs.
+    linkToCommits: true
+    # Only allow versioning to happen on main branch.
+    branch: main
+    # Additionally build a changelog at the root of the workspace.
+    workspaceChangelog: true
+
+scripts:
+  analyze:
+    run: |
+      melos exec -- "dart analyze . --fatal-infos"
+    description: |
+      Run `dart analyze` in all packages.
+       - Note: you can also rely on your IDEs Dart Analysis / Issues window.
+
+  clean:
+    run: |
+      melos exec -- "flutter clean"
+    description: Clean all Flutter projects
+
+  get:
+    run: |
+      melos exec -- "flutter pub get"
+    description: Get dependencies for all packages
+
+  build:runner:
+    run: |
+      melos exec --depends-on="build_runner" -- "dart run build_runner build --delete-conflicting-outputs"
+    description: Build all generated files using build_runner
+
+  # Build shared packages first (they have no dependencies)
+  build:shared:
+    run: |
+      melos exec --scope="packages/*" --depends-on="build_runner" -- "dart run build_runner build --delete-conflicting-outputs"
+    description: Build all shared packages
+
+  # Build Flutter apps in dependency order
+  build:apps:
+    run: |
+      melos run build:shared
+      melos exec --scope="apps/*" --flutter --order-dependents -- "flutter build web --release"
+    description: Build Flutter apps in dependency order
+
+  # Build Dart servers in dependency order  
+  build:servers:
+    run: |
+      melos run build:shared
+      melos exec --scope="gateway_server,data_server" --order-dependents -- "dart compile exe lib/main.dart -o build/server"
+    description: Build Dart servers in dependency order
+
+  # Build everything
+  build:all:
+    run: |
+      melos run build:shared
+      melos run build:apps
+      melos run build:servers
+    description: Build all projects in correct dependency order
+
+  dev:auto:
+    steps:
+      - echo "🏗️ Building shared packages..."
+      - melos run build:shared
+      - echo "🚀 Starting app..."
+      - melos exec --scope="client_price_comparer" -- "flutter run"
+
+  # Debug avec hot reload activé
+  debug:hot:
+    steps:
+      - echo "🏗️ Building shared packages..."
+      - melos run build:shared
+      - echo "🔥 Starting with hot reload..."
+      - melos exec --scope="client_price_comparer" -- "flutter run --debug --hot"
+    description: Debug mode with hot reload

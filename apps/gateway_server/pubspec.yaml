@@ -1,0 +1,48 @@
+# fakes values to edit
+name: gateway_server
+description: "Gateway server for price comparison API routing and authentication"
+version: 1.0.0
+publish_to: none
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  # HTTP server framework
+  shelf: ^1.4.0
+  shelf_router: ^1.1.0
+  shelf_cors_headers: ^0.1.5
+  
+  # JSON handling
+  json_annotation: ^4.9.0
+  
+  # HTTP client for upstream requests
+  http: ^1.1.0
+  
+  # Logging
+  logging: ^1.2.0
+  
+  # Environment variables
+  dotenv: ^4.2.0
+  
+  # Authentication (JWT)
+  dart_jsonwebtoken: ^2.12.2
+  
+  # Local packages (uncomment when you create them)
+  # shared_models:
+  #   path: ../../packages/shared_models
+  # api_contracts:
+  #   path: ../../packages/api_contracts
+
+dev_dependencies:
+  # Testing
+  test: ^1.24.0
+  
+  # Code generation
+  build_runner: ^2.4.7
+  json_serializable: ^6.7.1
+  
+  # Linting
+  lints: ^3.0.0
+
+# No flutter section needed - this is a pure Dart server application
