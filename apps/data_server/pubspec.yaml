@@ -9,7 +9,7 @@ environment:
 dependencies:
   # HTTP server framework
   shelf: ^1.4.0
-  shelf_router: ^1.1.0
+  shelf_router: ^1.1.4
   shelf_cors_headers: ^0.1.5
   
   # Database ORM and drivers
@@ -31,11 +31,10 @@ dependencies:
   # HTTP client (for scraper integration)
   http: ^1.1.0
   
-  # Local packages (uncomment when you create them)
-  # shared_models:
-  #   path: ../../packages/shared_models
   # api_contracts:
   #   path: ../../packages/api_contracts
+  shared_models:
+    path: ../../packages/shared_models
 
 dev_dependencies:
   # Testing
