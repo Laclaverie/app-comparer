@@ -4,10 +4,6 @@ import 'dart:io';
 
 part 'data_database.g.dart';
 
-// Supprimez cet import :
-// import 'package:shared_models/models/database/tables_product.dart';
-
-// Définissez les tables directement ici :
 class Products extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get barcode => integer().unique()();
@@ -83,7 +79,6 @@ class DataDatabase extends _$DataDatabase {
     return await into(products).insert(product);
   }
 
-  // ✅ Méthodes manquantes à ajouter
   Future<Product?> getProductById(int id) async {
     return await (select(products)
           ..where((p) => p.id.equals(id)))
@@ -106,7 +101,6 @@ class DataDatabase extends _$DataDatabase {
         .get();
   }
 
-  // ✅ Autres méthodes existantes
   Future<List<PriceHistoryData>> getPriceHistoryForProduct(int productId) async {
     return await (select(priceHistory)
           ..where((p) => p.productId.equals(productId))
@@ -114,7 +108,6 @@ class DataDatabase extends _$DataDatabase {
         .get();
   }
 
-  // Méthodes pour les autres tables
   Future<List<Brand>> getAllBrands() async {
     return await select(brands).get();
   }

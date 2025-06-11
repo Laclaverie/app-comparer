@@ -63,25 +63,38 @@ class ProductHandlers {
   Future<Response> createProduct(Request request) async {
     try {
       final body = await request.readAsString();
-      final data = json.decode(body) as Map<String, dynamic>;
-      final productDto = ProductDto.fromJson(data);
-      
+      final data = json.decode(body) as Map<String, dynamic>;  // ← Peut lever FormatException
+      final productDto = ProductDto.fromJson(data);  // ← Peut lever une exception aussi
+    
       final created = await productService.createProduct(productDto);
       return Response.ok(
         json.encode(created.toJson()),
         headers: {'Content-Type': 'application/json'},
       );
-    } on ArgumentError catch (e) {
+    } on FormatException catch (e) {  // ← Ajoutez ce catch spécifique
+      return Response.badRequest(
+        body: json.encode({'error': 'Invalid JSON format: ${e.message}'}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    } on TypeError catch (e) {  // ← Pour les erreurs de conversion de type
+      return Response.badRequest(
+        body: json.encode({'error': 'Invalid data format: ${e.toString()}'}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    } on ArgumentError catch (e) {  // ← Validation métier (nom vide, etc.)
       return Response.badRequest(
         body: json.encode({'error': e.message}),
+        headers: {'Content-Type': 'application/json'},
       );
-    } on StateError catch (e) {
+    } on StateError catch (e) {  // ← Conflit (barcode dupliqué)
       return Response(409, // Conflict
         body: json.encode({'error': e.message}),
+        headers: {'Content-Type': 'application/json'},
       );
-    } catch (e) {
+    } catch (e) {  // ← Toutes les autres erreurs → 500
       return Response.internalServerError(
         body: json.encode({'error': 'Failed to create product: $e'}),
+        headers: {'Content-Type': 'application/json'},
       );
     }
   }
