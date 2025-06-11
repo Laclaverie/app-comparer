@@ -1,8 +1,8 @@
 import 'package:shared_models/productdto.dart';
-import 'package:drift/drift.dart'; 
+import 'package:drift/drift.dart';
 import '../data_database.dart';
 
-extension ProductToDto on Product {  // Drift Product → DTO
+extension ProductToDto on Product {
   ProductDto toDto() {
     return ProductDto(
       id: id,
@@ -10,13 +10,31 @@ extension ProductToDto on Product {  // Drift Product → DTO
       name: name,
       brandId: brandId,
       categoryId: categoryId,
-      imageUrl: imageUrl,
+      imageFileName: imageFileName,
+      description: description,
+    );
+  }
+
+  ProductDto toDtoWithImageUrl() {
+    String? imageUrl;
+    if (imageFileName != null) {
+      imageUrl = '/api/images/compressed/$imageFileName';
+    }
+
+    return ProductDto(
+      id: id,
+      barcode: barcode,
+      name: name,
+      brandId: brandId,
+      categoryId: categoryId,
+      imageFileName: imageFileName,
+      imageUrl: imageUrl, // ← URL pour téléchargement
       description: description,
     );
   }
 }
 
-extension ProductDtoToCompanion on ProductDto {  // DTO → Drift Companion
+extension ProductDtoToCompanion on ProductDto {
   ProductsCompanion toCompanion() {
     return ProductsCompanion(
       id: id != null ? Value(id!) : const Value.absent(),
@@ -24,7 +42,8 @@ extension ProductDtoToCompanion on ProductDto {  // DTO → Drift Companion
       name: Value(name),
       brandId: brandId != null ? Value(brandId!) : const Value.absent(),
       categoryId: categoryId != null ? Value(categoryId!) : const Value.absent(),
-      imageUrl: imageUrl != null ? Value(imageUrl!) : const Value.absent(),
+      imageFileName: imageFileName != null ? Value(imageFileName!) : const Value.absent(),
+      imagePath: const Value.absent(), // Géré par le serveur
       description: description != null ? Value(description!) : const Value.absent(),
     );
   }

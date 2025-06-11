@@ -3,14 +3,15 @@ import 'package:drift/native.dart';
 import 'dart:io';
 
 part 'data_database.g.dart';
-
+// TODO > improve because it's a copy of the shared_models package
 class Products extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get barcode => integer().unique()();
   TextColumn get name => text()();
-  IntColumn get brandId => integer().nullable()();
-  IntColumn get categoryId => integer().nullable()();
-  TextColumn get imageUrl => text().nullable()();
+  IntColumn get brandId => integer().nullable().references(Brands, #id)();
+  IntColumn get categoryId => integer().nullable().references(Categories, #id)();
+  TextColumn get imageFileName => text().nullable()();  // ← Nom du fichier, pas URL
+  TextColumn get imagePath => text().nullable()();      // ← Chemin local sur serveur
   TextColumn get description => text().nullable()();
 }
 

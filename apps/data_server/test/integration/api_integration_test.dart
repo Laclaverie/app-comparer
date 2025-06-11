@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:data_server/services/image_service.dart';
 import 'package:test/test.dart';
 import 'package:shelf/shelf_io.dart';
 import 'package:shelf_router/shelf_router.dart';
@@ -13,12 +14,14 @@ void main() {
     late HttpServer server;
     late DataDatabase database;
     late String baseUrl;
+    late ImageService imageService;
 
     setUp(() async {
       // Setup database
       database = DataDatabase.forTesting();
-      final productService = ProductService(database);
-      final productHandlers = ProductHandlers(productService);
+      imageService = ImageService();
+      final productService = ProductService(database,imageService);
+      final productHandlers = ProductHandlers(productService,imageService);
 
       // Setup router
       final router = Router()

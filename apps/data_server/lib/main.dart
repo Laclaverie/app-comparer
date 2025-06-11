@@ -4,25 +4,37 @@ import 'package:shelf/shelf_io.dart';
 import 'package:shelf_router/shelf_router.dart';
 import 'data_database.dart';
 import 'services/product_service.dart';
+import 'services/image_service.dart';
 import 'handlers/product_handlers.dart';
+import 'handlers/image_handlers.dart';
 
 void main() async {
-  // Initialiser la base de données
+  // Initialiser les services
   final database = DataDatabase();
-  final productService = ProductService(database);
-  final productHandlers = ProductHandlers(productService);
+  final imageService = ImageService();
+  final productService = ProductService(database, imageService);
+  
+  // Initialiser les handlers
+  final productHandlers = ProductHandlers(productService,imageService);
+  final imageHandlers = ImageHandlers(imageService);
 
-  // Router avec paramètres
+  // Router avec gestion des images
   final router = Router()
     ..get('/', _rootHandler)
     ..get('/health', _healthHandler)
+    
     // Products routes
     ..get('/api/products', productHandlers.getAllProducts)
     ..get('/api/products/barcode/<barcode>', productHandlers.getProductByBarcode)
     ..get('/api/products/search', productHandlers.searchProducts)
     ..post('/api/products', productHandlers.createProduct)
     ..put('/api/products/<id>', productHandlers.updateProduct)
-    ..delete('/api/products/<id>', productHandlers.deleteProduct);
+    ..delete('/api/products/<id>', productHandlers.deleteProduct)
+    
+    // Images routes
+    ..post('/api/images/upload', imageHandlers.uploadImage)
+    ..get('/api/images/compressed/<filename>', imageHandlers.getCompressedImage)
+    ..get('/api/images/thumbnails/<filename>', imageHandlers.getThumbnail);
 
   // Middleware
   final handler = Pipeline()
@@ -37,11 +49,9 @@ void main() async {
   print('🚀 Data Server running on http://${ip.address}:${server.port}');
   print('📋 Endpoints:');
   print('   GET    /api/products');
-  print('   GET    /api/products/barcode/{barcode}');
-  print('   GET    /api/products/search?q={query}');
-  print('   POST   /api/products');
-  print('   PUT    /api/products/{id}');
-  print('   DELETE /api/products/{id}');
+  print('   POST   /api/images/upload');
+  print('   GET    /api/images/compressed/{filename}');
+  print('   GET    /api/images/thumbnails/{filename}');
 }
 
 Response _rootHandler(Request req) => Response.ok('Data Server API v1.0');

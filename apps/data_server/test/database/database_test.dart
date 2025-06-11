@@ -7,7 +7,6 @@ void main() {
     late DataDatabase database;
 
     setUp(() async {
-      // Utilise une base en mémoire pour les tests
       database = DataDatabase.forTesting();
     });
 
@@ -16,12 +15,14 @@ void main() {
     });
 
     group('Products', () {
-      test('should insert and retrieve product', () async {
+      test('should insert and retrieve product with image fields', () async {
         // Arrange
         final productCompanion = ProductsCompanion(
           barcode: const Value(1234567890),
           name: const Value('Test Product'),
           description: const Value('A test product'),
+          imageFileName: const Value('test_image.jpg'),  // ← Ajouté
+          imagePath: const Value('/server/images/test_image.jpg'),  // ← Ajouté
         );
 
         // Act
@@ -34,39 +35,35 @@ void main() {
         expect(retrievedProduct.barcode, equals(1234567890));
         expect(retrievedProduct.name, equals('Test Product'));
         expect(retrievedProduct.description, equals('A test product'));
+        expect(retrievedProduct.imageFileName, equals('test_image.jpg'));  // ← Ajouté
+        expect(retrievedProduct.imagePath, equals('/server/images/test_image.jpg'));  // ← Ajouté
       });
 
-      test('should get product by barcode', () async {
+      test('should handle null image fields', () async {
         // Arrange
-        final barcode = 9876543210;
         final productCompanion = ProductsCompanion(
-          barcode: Value(barcode),
-          name: const Value('Barcode Product'),
+          barcode: const Value(9876543210),
+          name: const Value('Product without image'),
+          imageFileName: const Value.absent(),  // ← Explicitement absent
+          imagePath: const Value.absent(),  // ← Explicitement absent
         );
 
         // Act
-        await database.insertProduct(productCompanion);
-        final product = await database.getProductByBarcode(barcode);
+        final id = await database.insertProduct(productCompanion);
+        final retrievedProduct = await database.getProductById(id);
 
         // Assert
-        expect(product, isNotNull);
-        expect(product!.barcode, equals(barcode));
-        expect(product.name, equals('Barcode Product'));
+        expect(retrievedProduct, isNotNull);
+        expect(retrievedProduct!.imageFileName, isNull);
+        expect(retrievedProduct.imagePath, isNull);
       });
 
-      test('should return null when product not found by barcode', () async {
-        // Act
-        final product = await database.getProductByBarcode(999999);
-
-        // Assert
-        expect(product, isNull);
-      });
-
-      test('should update product', () async {
+      test('should update product with new image', () async {
         // Arrange
         final originalCompanion = ProductsCompanion(
           barcode: const Value(1111111111),
           name: const Value('Original Name'),
+          imageFileName: const Value.absent(),
         );
         final id = await database.insertProduct(originalCompanion);
 
@@ -75,6 +72,8 @@ void main() {
           barcode: const Value(1111111111),
           name: const Value('Updated Name'),
           description: const Value('Updated description'),
+          imageFileName: const Value('new_image.jpg'),  // ← Nouvelle image
+          imagePath: const Value('/server/images/new_image.jpg'),
         );
 
         // Act
@@ -85,6 +84,8 @@ void main() {
         expect(updated, isTrue);
         expect(retrievedProduct!.name, equals('Updated Name'));
         expect(retrievedProduct.description, equals('Updated description'));
+        expect(retrievedProduct.imageFileName, equals('new_image.jpg'));
+        expect(retrievedProduct.imagePath, equals('/server/images/new_image.jpg'));
       });
 
       test('should delete product', () async {

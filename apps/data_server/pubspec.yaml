@@ -30,11 +30,14 @@ dependencies:
   
   # HTTP client (for scraper integration)
   http: ^1.1.0
+
+  # Images
   
   # api_contracts:
   #   path: ../../packages/api_contracts
   shared_models:
     path: ../../packages/shared_models
+  image: ^4.5.4
 
 dev_dependencies:
   # Testing

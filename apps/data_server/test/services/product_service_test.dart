@@ -2,15 +2,19 @@ import 'package:test/test.dart';
 import 'package:shared_models/productdto.dart';
 import '../../lib/data_database.dart';
 import '../../lib/services/product_service.dart';
+import 'package:data_server/services/image_service.dart';
+
 
 void main() {
   group('ProductService', () {
     late DataDatabase database;
+    late ImageService imageService;
     late ProductService service;
 
     setUp(() async {
       database = DataDatabase.forTesting();
-      service = ProductService(database);
+      imageService = ImageService();
+      service = ProductService(database, imageService);
     });
 
     tearDown(() async {
@@ -186,6 +190,67 @@ void main() {
       expect(appleProducts.length, equals(2));
       expect(samsungProducts.length, equals(1));
       expect(appleProducts.every((p) => p.name.contains('Apple')), isTrue);
+    });
+
+    test('should create product and return with image URL', () async {
+      // Arrange
+      final dto = ProductDto(
+        barcode: 1234567890,
+        name: 'New Product',
+        description: 'A new product',
+        imageFileName: 'test_image.jpg',
+      );
+
+      // Act
+      final created = await service.createProduct(dto);
+
+      // Assert
+      expect(created.id, isNotNull);
+      expect(created.barcode, equals(1234567890));
+      expect(created.name, equals('New Product'));
+      expect(created.description, equals('A new product'));
+      expect(created.imageFileName, equals('test_image.jpg'));
+      expect(created.imageUrl, equals('/api/images/compressed/test_image.jpg'));
+    });
+
+    test('should create product without image', () async {
+      // Arrange
+      final dto = ProductDto(
+        barcode: 9876543210,
+        name: 'Product without image',
+      );
+
+      // Act
+      final created = await service.createProduct(dto);
+
+      // Assert
+      expect(created.imageFileName, isNull);
+      expect(created.imageUrl, isNull);
+    });
+
+    test('should get all products with image URLs', () async {
+      // Arrange
+      await service.createProduct(ProductDto(
+        barcode: 1111111111,
+        name: 'Product 1',
+        imageFileName: 'image1.jpg',
+      ));
+      await service.createProduct(ProductDto(
+        barcode: 2222222222,
+        name: 'Product 2',
+      ));
+
+      // Act
+      final products = await service.getAllProducts();
+
+      // Assert
+      expect(products.length, equals(2));
+
+      final productWithImage = products.firstWhere((p) => p.name == 'Product 1');
+      final productWithoutImage = products.firstWhere((p) => p.name == 'Product 2');
+
+      expect(productWithImage.imageUrl, equals('/api/images/compressed/image1.jpg'));
+      expect(productWithoutImage.imageUrl, isNull);
     });
   });
 }

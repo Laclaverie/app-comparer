@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:data_server/services/image_service.dart' show ImageService;
 import 'package:test/test.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shared_models/productdto.dart';
@@ -9,13 +10,15 @@ import '../../lib/handlers/product_handlers.dart';
 void main() {
   group('ProductHandlers', () {
     late DataDatabase database;
+    late ImageService imageService;
     late ProductService service;
     late ProductHandlers handlers;
 
     setUp(() async {
       database = DataDatabase.forTesting();
-      service = ProductService(database);
-      handlers = ProductHandlers(service);
+      imageService = ImageService();  // ← Ajouté
+      service = ProductService(database, imageService);  // ← Mis à jour
+      handlers = ProductHandlers(service, imageService);  // ← Mis à jour si nécessaire
     });
 
     tearDown(() async {
@@ -187,6 +190,33 @@ void main() {
 
       // Assert
       expect(response.statusCode, equals(400));
+    });
+
+    test('should create product with image fields', () async {
+      // Arrange
+      final dto = ProductDto(
+        barcode: 1234567890,
+        name: 'New Product',
+        description: 'A new product',
+        imageFileName: 'test_image.jpg',  // ← Ajouté
+      );
+
+      final request = Request(
+        'POST',
+        Uri.parse('http://localhost/api/products'),
+        body: json.encode(dto.toJson()),
+      );
+
+      // Act
+      final response = await handlers.createProduct(request);
+
+      // Assert
+      expect(response.statusCode, equals(200));
+      final body = await response.readAsString();
+      final created = ProductDto.fromJson(json.decode(body));
+      expect(created.id, isNotNull);
+      expect(created.imageFileName, equals('test_image.jpg'));
+      expect(created.imageUrl, equals('/api/images/compressed/test_image.jpg'));  // ← URL générée
     });
   });
 }
