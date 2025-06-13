@@ -152,3 +152,7 @@ docker-compose.override.yml
 # melos
 **/pubspec_overrides.yaml
 pubspec_overrides.yaml
+
+# database files
+*.db
+*.sqlite

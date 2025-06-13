@@ -10,7 +10,7 @@ import 'handlers/image_handlers.dart';
 
 void main() async {
   // Initialiser les services
-  final database = DataDatabase();
+  final database = DataDatabase.development();
   final imageService = ImageService();
   final productService = ProductService(database, imageService);
   

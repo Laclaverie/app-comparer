@@ -54,16 +54,27 @@ class Users extends Table {
   tables: [Products, Brands, Categories, Supermarkets, PriceHistory, Users],
 )
 class DataDatabase extends _$DataDatabase {
-  DataDatabase() : super(_openConnection());
-
-  factory DataDatabase.forTesting() {
-    return DataDatabase._internal(NativeDatabase.memory());
-  }
-
-  DataDatabase._internal(super.e);
+  // Constructeur pour la production
+  DataDatabase() : super(_openConnection('database.db'));
+  
+  // Constructeur pour les tests
+  DataDatabase.forTesting() : super(_openConnection(':memory:'));
+  
+  // Constructeur pour le développement avec fichier persistant
+  DataDatabase.development() : super(_openConnection('dev_database.db'));
 
   @override
   int get schemaVersion => 1;
+
+  // Méthode statique pour créer la connexion
+  static QueryExecutor _openConnection(String path) {
+    if (path == ':memory:') {
+      return NativeDatabase.memory();
+    }
+    return NativeDatabase.createInBackground(File(path));
+  }
+
+  // ✅ Supprimez la méthode openConnection() - plus besoin
 
   // ✅ Méthodes existantes
   Future<List<Product>> getAllProducts() async {
@@ -124,11 +135,5 @@ class DataDatabase extends _$DataDatabase {
   Future<List<User>> getAllUsers() async {
     return await select(users).get();
   }
-}
 
-LazyDatabase _openConnection() {
-  return LazyDatabase(() async {
-    const dbPath = 'data_server.sqlite';
-    return NativeDatabase.createInBackground(File(dbPath));
-  });
 }
