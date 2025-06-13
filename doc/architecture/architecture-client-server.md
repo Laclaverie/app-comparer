@@ -21,12 +21,4 @@ graph TD
         C2
         C3
     end
-
-    style A fill:#b3e0ff,stroke:#333,stroke-width:1px
-    style B fill:#ffd699,stroke:#333,stroke-width:1px
-    style F fill:#c0c0ff,stroke:#333,stroke-width:1px
-    style C1 fill:#ffd699,stroke:#333,stroke-width:1px
-    style D1 fill:#ffe699,stroke:#333,stroke-width:1px
-    style C2 fill:#d9ead3,stroke:#333,stroke-width:1px
-    style L fill:#fff2cc,stroke:#333,stroke-width:1px
 ```
