@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:typed_data';
+import 'package:drift/drift.dart'; 
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 import '../services/product_service.dart';
@@ -274,6 +274,72 @@ class ProductHandlers {
     } catch (e) {
       return Response.internalServerError(
         body: json.encode({'error': 'Failed to add test product: $e'}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    }
+  }
+
+  /// Récupérer les prix d'un produit par tous les magasins
+  Future<Response> getProductPrices(Request request) async {
+    final productIdStr = request.params['id'];
+    final productId = int.tryParse(productIdStr ?? '');
+    
+    if (productId == null) {
+      return Response.badRequest(
+        body: json.encode({'error': 'Invalid product ID'}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    }
+
+    try {
+      // Récupérer le paramètre 'since' pour filtrer par date
+      final sinceParam = request.url.queryParameters['since'];
+      DateTime? sinceDate;
+      
+      if (sinceParam != null) {
+        try {
+          sinceDate = DateTime.parse(sinceParam);
+          print('📅 Filtering prices since: $sinceDate');
+        } catch (e) {
+          print('⚠️  Invalid since parameter: $sinceParam');
+        }
+      }
+
+      // Construire la requête avec filtre optionnel par date
+      var query = productService.database.select(productService.database.priceHistory).join([
+        leftOuterJoin(productService.database.supermarkets, 
+            productService.database.supermarkets.id.equalsExp(productService.database.priceHistory.supermarketId))
+      ])..where(productService.database.priceHistory.productId.equals(productId));
+
+      // Ajouter le filtre de date si spécifié
+      if (sinceDate != null) {
+        query = query..where(productService.database.priceHistory.date.isBiggerThanValue(sinceDate));
+      }
+
+      final results = await query.get();
+      
+      final prices = results.map((row) {
+        final priceData = row.readTable(productService.database.priceHistory);
+        final storeData = row.readTableOrNull(productService.database.supermarkets);
+        
+        return {
+          'storeName': storeData?.name ?? 'Unknown Store',
+          'price': priceData.price,
+          'lastUpdated': priceData.date.toIso8601String(),
+          'storeLocation': storeData?.location,
+        };
+      }).toList();
+
+      print('🔍 Found ${prices.length} prices for product $productId' + 
+            (sinceDate != null ? ' since $sinceDate' : ''));
+
+      return Response.ok(
+        json.encode(prices),
+        headers: {'Content-Type': 'application/json'},
+      );
+    } catch (e) {
+      return Response.internalServerError(
+        body: json.encode({'error': 'Failed to get product prices: $e'}),
         headers: {'Content-Type': 'application/json'},
       );
     }
