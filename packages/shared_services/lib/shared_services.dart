@@ -1,8 +1,7 @@
 /// Support for doing something awesome.
 ///
 /// More dartdocs go here.
-library;
+library shared_services;
 
-export 'src/shared_services_base.dart';
-
-// TODO: Export any libraries intended for clients of this package.
+export 'data_server/data_server_client.dart';
+// Exportez tous vos services ici

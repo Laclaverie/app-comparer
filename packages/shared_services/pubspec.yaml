@@ -1,15 +1,17 @@
 name: shared_services
-description: A starting point for Dart libraries or applications.
+description: "Services de communication inter-serveurs"
 version: 1.0.0
-# repository: https://github.com/my_org/my_repo
+publish_to: none
 
 environment:
   sdk: ^3.8.0
 
-# Add regular dependencies here.
 dependencies:
-  # path: ^1.8.0
+  http: ^1.4.0
+  lints: ^6.0.0
+  shared_models:
+    path: ../shared_models
 
 dev_dependencies:
-  lints: ^5.0.0
   test: ^1.24.0
+  mockito: ^5.4.0
