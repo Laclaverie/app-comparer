@@ -63,4 +63,19 @@ class ClientServerService {
       return null;
     }
   }
+
+  Future<bool> addProductToTestDB(Map<String, dynamic> productData) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/admin/test-products'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(productData),
+      ).timeout(const Duration(seconds: 10));
+      
+      return response.statusCode == 200;
+    } catch (e) {
+      _logger.warning('Add product to test DB failed: $e');
+      return false;
+    }
+  }
 }
