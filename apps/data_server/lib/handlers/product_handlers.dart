@@ -252,4 +252,30 @@ class ProductHandlers {
 
     return imageService.getThumbnail(fileName);
   }
+
+  // ← Ajoutez cette méthode
+  Future<Response> addTestProduct(Request request) async {
+    try {
+      final body = await request.readAsString();
+      final data = json.decode(body);
+
+      final id = await productService.createProduct(
+        ProductDto(
+          barcode: data['barcode'],
+          name: data['name'],
+          description: data['description'],
+        )
+      );
+
+      return Response.ok(
+        json.encode({'success': true, 'id': id.id}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    } catch (e) {
+      return Response.internalServerError(
+        body: json.encode({'error': 'Failed to add test product: $e'}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    }
+  }
 }

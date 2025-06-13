@@ -34,7 +34,10 @@ void main() async {
     // Images routes
     ..post('/api/images/upload', imageHandlers.uploadImage)
     ..get('/api/images/compressed/<filename>', imageHandlers.getCompressedImage)
-    ..get('/api/images/thumbnails/<filename>', imageHandlers.getThumbnail);
+    ..get('/api/images/thumbnails/<filename>', imageHandlers.getThumbnail)
+    
+    // Route pour ajouter des produits de test
+    ..post('/api/admin/test-products', productHandlers.addTestProduct);
 
   // Middleware
   final handler = Pipeline()
