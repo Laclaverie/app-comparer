@@ -104,6 +104,90 @@ class TestDataSeeder {
     final count = await database.select(database.products).get().then((rows) => rows.length);
     print('📊 Nombre de produits en base: $count');
   }
+
+  Future<void> seedTestStores() async {
+    print('🏪 Génération des magasins de test...');
+
+    final testStores = [
+      SupermarketsCompanion(
+        name: const Value('Carrefour'),
+        location: const Value('123 Rue de la République, Centre Commercial'),
+      ),
+      SupermarketsCompanion(
+        name: const Value('Leclerc'),
+        location: const Value('456 Avenue des Champs, Zone Commerciale Nord'),
+      ),
+      SupermarketsCompanion(
+        name: const Value('Monoprix'),
+        location: const Value('789 Place du Marché, Centre Ville'),
+      ),
+      SupermarketsCompanion(
+        name: const Value('Super U'),
+        location: const Value('321 Boulevard de la Gare, Quartier Sud'),
+      ),
+      SupermarketsCompanion(
+        name: const Value('IGA'),
+        location: const Value('654 Rue des Entreprises, Zone Industrielle'),
+      ),
+    ];
+
+    for (final store in testStores) {
+      try {
+        await database.into(database.supermarkets).insert(store);
+        print('✅ Magasin ajouté: ${store.name.value} - ${store.location.value}');
+      } catch (e) {
+        print('⚠️  Magasin existe déjà: ${store.name.value}');
+      }
+    }
+  }
+
+  Future<void> seedTestPrices() async {
+    print('💰 Génération des prix de test...');
+
+    // Récupérer les produits et magasins existants
+    final products = await database.select(database.products).get();
+    final stores = await database.select(database.supermarkets).get();
+
+    if (products.isEmpty || stores.isEmpty) {
+      print('❌ Pas de produits ou magasins trouvés. Générez-les d\'abord.');
+      return;
+    }
+
+    // Générer des prix pour les 3 premiers produits dans tous les magasins
+    for (int i = 0; i < 3 && i < products.length; i++) {
+      final product = products[i];
+      final basePrice = 2.0 + (i * 0.5); // Prix de base variable
+
+      for (final store in stores) {
+        // Variation de prix par magasin (-20% à +30%)
+        final variation = (store.id % 5 - 2) * 0.1; // -0.2 à +0.3
+        final price = basePrice + (basePrice * variation);
+
+        final priceEntry = PriceHistoryCompanion(
+          productId: Value(product.id),
+          supermarketId: Value(store.id),
+          price: Value(price),
+          date: Value(DateTime.now()),
+        );
+
+        try {
+          await database.into(database.priceHistory).insert(priceEntry);
+          print('✅ Prix ajouté: ${product.name} chez ${store.name} = €${price.toStringAsFixed(2)}');
+        } catch (e) {
+          print('⚠️  Prix existe déjà pour ${product.name} chez ${store.name}');
+        }
+      }
+    }
+  }
+
+  // Modifiez la méthode principale
+  Future<void> seedAllData() async {
+    await seedTestProducts(); // Produits existants
+    await seedTestStores();         // Nouveaux magasins
+    await seedTestPrices();         // Nouveaux prix
+    
+    print('🎉 Génération complète terminée !');
+  }
 }
 
 // Script principal
@@ -116,7 +200,7 @@ void main(List<String> args) async {
   } else if (args.contains('--stats')) {
     await seeder.showStats();
   } else {
-    await seeder.seedTestProducts();
+    await seeder.seedAllData();
     await seeder.showStats();
   }
 
