@@ -20,15 +20,25 @@ class ClientServerService {
     }
   }
   
-  Future<Map<String, dynamic>?> getProducts() async {
+  Future<List<Map<String, dynamic>>?> getProducts() async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/api/products'),
+        Uri.parse('$baseUrl/api/products?limit=10'),
         headers: {'Content-Type': 'application/json'},
       ).timeout(const Duration(seconds: 10));
       
       if (response.statusCode == 200) {
-        return json.decode(response.body);
+        final data = json.decode(response.body);
+        
+        if (data is Map<String, dynamic> && data.containsKey('products')) {
+          return List<Map<String, dynamic>>.from(data['products']);
+        }
+        // Si c'est directement une liste
+        else if (data is List) {
+          return List<Map<String, dynamic>>.from(data);
+        }
+        
+        return [];  // Liste vide par défaut
       }
       return null;
     } catch (e) {
