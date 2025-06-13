@@ -9,7 +9,6 @@ class ImageService {
   Future<String> saveAndCompressImage(Uint8List imageBytes, String originalFileName) async {
     // Générer un nom unique
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final extension = originalFileName.split('.').last;
     final uniqueFileName = '${timestamp}_$originalFileName';
 
     // Sauvegarder l'original

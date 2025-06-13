@@ -41,30 +41,30 @@ scripts:
 
   # Build shared packages first (they have no dependencies)
   build:shared:
-    run: |
-      melos exec --scope="packages/*" --depends-on="build_runner" -- "dart run build_runner build --delete-conflicting-outputs"
+    steps:
+      - melos exec --scope="packages/*" -- "dart run build_runner build --delete-conflicting-outputs"
     description: Build all shared packages
 
   # Build Flutter apps in dependency order
   build:apps:
-    run: |
-      melos run build:shared
-      melos exec --scope="apps/*" --flutter --order-dependents -- "flutter build web --release"
+    steps: 
+      - melos run build:shared
+      - melos exec --scope="apps/*" --flutter --order-dependents -- "dart run build_runner build --delete-conflicting-outputs"
     description: Build Flutter apps in dependency order
 
   # Build Dart servers in dependency order  
   build:servers:
-    run: |
-      melos run build:shared
-      melos exec --scope="gateway_server,data_server" --order-dependents -- "dart compile exe lib/main.dart -o build/server"
+    steps:
+      - melos run build:shared
+      - melos exec --scope="gateway_server,data_server" --order-dependents -- "dart run build_runner build --delete-conflicting-outputs"
     description: Build Dart servers in dependency order
 
   # Build everything
   build:all:
-    run: |
-      melos run build:shared
-      melos run build:apps
-      melos run build:servers
+    steps:
+      - melos run build:shared
+      - melos run build:apps
+      - melos run build:servers
     description: Build all projects in correct dependency order
 
   dev:auto:
