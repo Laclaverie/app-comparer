@@ -5,3 +5,5 @@ export 'models/database/tables_product.dart';
 
 // Export DTO
 export 'productdto.dart';
+
+export 'models/unit/unit_models.dart';
