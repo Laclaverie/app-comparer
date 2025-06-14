@@ -3,14 +3,20 @@ import 'package:shared_models/models/price/price_point.dart';
 
 class PriceChartWidget extends StatelessWidget {
   final List<PricePoint> priceHistory;
+  final String? selectedStore;
 
   const PriceChartWidget({
     super.key,
     required this.priceHistory,
+    this.selectedStore,
   });
 
   @override
   Widget build(BuildContext context) {
+    final filteredHistory = selectedStore != null
+        ? priceHistory.where((point) => point.storeName == selectedStore).toList()
+        : _getAveragePrices();
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -18,7 +24,9 @@ class PriceChartWidget extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Price Evolution',
+              selectedStore != null
+                  ? 'Price Evolution - $selectedStore'
+                  : 'Price Evolution - Average',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -33,7 +41,7 @@ class PriceChartWidget extends StatelessWidget {
                 border: Border.all(color: Colors.grey[300]!),
               ),
               child: CustomPaint(
-                painter: PriceChartPainter(priceHistory),
+                painter: PriceChartPainter(filteredHistory),
                 size: const Size(double.infinity, 200),
               ),
             ),
@@ -43,7 +51,7 @@ class PriceChartWidget extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '${priceHistory.length} days ago',
+                  '30 days ago',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 Text(
@@ -56,6 +64,24 @@ class PriceChartWidget extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  List<PricePoint> _getAveragePrices() {
+    final Map<String, List<PricePoint>> pricesByDate = {};
+    
+    for (final point in priceHistory) {
+      final dateKey = point.date.toIso8601String().split('T')[0];
+      pricesByDate.putIfAbsent(dateKey, () => []).add(point);
+    }
+    
+    return pricesByDate.entries.map((entry) {
+      final avgPrice = entry.value.map((p) => p.price).reduce((a, b) => a + b) / entry.value.length;
+      return PricePoint(
+        date: DateTime.parse(entry.key),
+        price: avgPrice,
+        storeName: 'Average',
+      );
+    }).toList()..sort((a, b) => a.date.compareTo(b.date));
   }
 }
 
@@ -80,7 +106,6 @@ class PriceChartPainter extends CustomPainter {
     final priceRange = maxPrice - minPrice;
     
     if (priceRange == 0) {
-      // If all prices are the same, draw a horizontal line
       final y = size.height / 2;
       path.moveTo(0, y);
       path.lineTo(size.width, y);

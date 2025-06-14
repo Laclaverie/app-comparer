@@ -34,6 +34,7 @@ RouterWithLogging createRouterWithLogging(ProductHandlers productHandlers, Image
   routerWrapper.addRoute('POST', '/api/products', productHandlers.createProduct, 'Create product');
   routerWrapper.addRoute('PUT', '/api/products/<id>', productHandlers.updateProduct, 'Update product');
   routerWrapper.addRoute('DELETE', '/api/products/<id>', productHandlers.deleteProduct, 'Delete product');
+  routerWrapper.addRoute('GET', '/api/products/<id>/price-history', productHandlers.getProductPriceHistory, 'Get product price history');
   
   // Images routes
   routerWrapper.addRoute('POST', '/api/images/upload', imageHandlers.uploadImage, 'Upload image');

@@ -344,4 +344,70 @@ class ProductHandlers {
       );
     }
   }
+
+  /// Récupérer l'historique des prix d'un produit (nouveau endpoint)
+  Future<Response> getProductPriceHistory(Request request) async {
+    final productIdStr = request.params['id'];
+    final productId = int.tryParse(productIdStr ?? '');
+    
+    if (productId == null) {
+      return Response.badRequest(
+        body: json.encode({'error': 'Invalid product ID'}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    }
+
+    try {
+      // Paramètres optionnels
+      final storeIdParam = request.url.queryParameters['storeId'];
+      final daysParam = request.url.queryParameters['days'] ?? '30';
+      final days = int.tryParse(daysParam) ?? 30;
+      
+      var query = productService.database.select(productService.database.priceHistory).join([
+        leftOuterJoin(productService.database.supermarkets, 
+            productService.database.supermarkets.id.equalsExp(productService.database.priceHistory.supermarketId))
+      ])..where(productService.database.priceHistory.productId.equals(productId));
+
+      // Filtrer par magasin si spécifié
+      if (storeIdParam != null) {
+        final storeId = int.tryParse(storeIdParam);
+        if (storeId != null) {
+          query = query..where(productService.database.priceHistory.supermarketId.equals(storeId));
+        }
+      }
+
+      // Filtrer par période
+      final sinceDate = DateTime.now().subtract(Duration(days: days));
+      query = query..where(productService.database.priceHistory.date.isBiggerThanValue(sinceDate));
+
+      // Ordonner par date
+      query = query..orderBy([OrderingTerm.asc(productService.database.priceHistory.date)]);
+
+      final results = await query.get();
+      
+      final history = results.map((row) {
+        final priceData = row.readTable(productService.database.priceHistory);
+        final storeData = row.readTableOrNull(productService.database.supermarkets);
+        
+        return {
+          'date': priceData.date.toIso8601String(),
+          'price': priceData.price,
+          'storeName': storeData?.name ?? 'Unknown Store',
+          'storeId': priceData.supermarketId,
+          'isPromotion': priceData.isPromotion,
+          'promotionDescription': priceData.promotionDescription,
+        };
+      }).toList();
+
+      return Response.ok(
+        json.encode(history),
+        headers: {'Content-Type': 'application/json'},
+      );
+    } catch (e) {
+      return Response.internalServerError(
+        body: json.encode({'error': 'Failed to get price history: $e'}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    }
+  }
 }
