@@ -48,19 +48,42 @@ class ClientServerService {
     }
   }
 
-  Future<Map<String, dynamic>?> getProductByBarcode(int barcode) async {
+  /// ✅ NOUVEAU : Récupérer un produit par code-barres depuis le serveur
+  Future<Map<String, dynamic>?> getProductByBarcode(String barcode) async {
     try {
+      debugPrint('🌐 [SERVER] GET produit barcode: $barcode');
+      debugPrint('   URL: $baseUrl/api/products/barcode/$barcode');
+      
       final response = await http.get(
         Uri.parse('$baseUrl/api/products/barcode/$barcode'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(const Duration(seconds: 10));
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      );
+
+      debugPrint('📡 [SERVER] Réponse GET barcode:');
+      debugPrint('   Status: ${response.statusCode}');
       
       if (response.statusCode == 200) {
-        return json.decode(response.body);
+        final productData = jsonDecode(response.body) as Map<String, dynamic>;
+        
+        debugPrint('✅ [SERVER] Produit récupéré:');
+        debugPrint('   - ID: ${productData['id']}');
+        debugPrint('   - Name: ${productData['name']}');
+        debugPrint('   - Description: ${productData['description']}');
+        debugPrint('   - Barcode: ${productData['barcode']}');
+        
+        return productData;
+      } else if (response.statusCode == 404) {
+        debugPrint('ℹ️ [SERVER] Produit non trouvé (404)');
+        return null;
+      } else {
+        debugPrint('❌ [SERVER] Erreur GET: ${response.statusCode}');
+        debugPrint('❌ [SERVER] Message: ${response.body}');
+        return null;
       }
-      return null;
     } catch (e) {
-      _logger.warning('Get product by barcode failed: $e');
+      debugPrint('❌ [SERVER] Exception GET barcode: $e');
       return null;
     }
   }

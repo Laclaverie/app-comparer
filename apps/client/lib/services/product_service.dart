@@ -1,11 +1,13 @@
 import 'dart:io'; // ✅ AJOUT pour File
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
 import 'package:shared_models/models/product/productdto.dart';
 
 import '../database/app_database.dart';
 import '../database/mappers/product_mapper.dart';
+import 'client_server_service.dart'; // ✅ AJOUT
 
 /// Résultat de la recherche de produit
 enum ProductSearchResult {
@@ -33,48 +35,92 @@ class ProductSearchResponse {
 
 class ProductService {
   final AppDatabase _database;
+  final ClientServerService _serverService = ClientServerService(); // ✅ AJOUT
 
   ProductService(this._database);
 
   /// Rechercher un produit par code-barres
   Future<ProductSearchResponse> searchProductByBarcode(String barcode) async {
     try {
-      // Validation du code-barres
-      final barcodeInt = int.tryParse(barcode);
-      if (barcodeInt == null || barcodeInt <= 0) {
-        return ProductSearchResponse(
-          result: ProductSearchResult.invalidBarcode,
-          errorMessage: 'Invalid barcode format: $barcode',
-        );
-      }
+      debugPrint('🔍 [SEARCH] Recherche produit barcode: $barcode');
 
-      // Recherche en base locale d'abord
-      final localProduct = await _database.getProductByBarcode(barcode);
-      
+      // ✅ Étape 1 : Recherche locale d'abord
+      final localProduct = await _searchLocalProduct(barcode);
       if (localProduct != null) {
-        // ✅ Convertir Product Drift vers ProductDto
-        final productDto = localProduct.toDto();
+        debugPrint('✅ [SEARCH] Produit trouvé en local: ${localProduct.name}');
         
         // Marquer comme scanné
-        await _database.markProductAsScanned(localProduct.id);
+        if (localProduct.id != null) {
+          await _database.markProductAsScanned(localProduct.id!);
+        }
         
         return ProductSearchResponse(
           result: ProductSearchResult.found,
-          productDto: productDto, // ✅ CORRECT
+          productDto: localProduct,
         );
       }
 
-      // Si pas trouvé localement, chercher via API
-      // TODO: Implémenter la recherche API
-      
+      debugPrint('ℹ️ [SEARCH] Produit non trouvé en local, recherche sur serveur...');
+
+      // ✅ Étape 2 : Recherche sur le serveur
+      final serverProduct = await _searchServerProduct(barcode);
+      if (serverProduct != null) {
+        debugPrint('✅ [SEARCH] Produit trouvé sur serveur: ${serverProduct['name']}');
+        
+        // ✅ Étape 3 : Sauvegarder en local
+        final localId = await _saveProductFromServer(serverProduct);
+        if (localId != null && localId > 0) {
+          // Marquer comme scanné
+          await _database.markProductAsScanned(localId);
+          
+          debugPrint('✅ [SEARCH] Produit synchronisé avec ID: $localId');
+          
+          // ✅ OPTION A : Récupérer depuis la base (avec les vrais IDs)
+          final savedProduct = await _database.getProductById(localId);
+          if (savedProduct != null) {
+            return ProductSearchResponse(
+              result: ProductSearchResult.found,
+              productDto: savedProduct.toDto(),
+            );
+          }
+          
+          // ✅ OPTION B : Fallback avec conversion directe du serveur
+          debugPrint('⚠️ [SEARCH] Impossible de récupérer le produit sauvé, utilisation conversion serveur');
+          final serverDto = _convertServerProductToDto(serverProduct);
+          // Mettre à jour l'ID local
+          final updatedDto = ProductDto(
+            id: localId, // ✅ UTILISATION de l'ID local
+            barcode: serverDto.barcode,
+            name: serverDto.name,
+            description: serverDto.description,
+            brandId: serverDto.brandId,
+            categoryId: serverDto.categoryId,
+            imageFileName: serverDto.imageFileName,
+            imageUrl: serverDto.imageUrl,
+            localImagePath: serverDto.localImagePath,
+            isActive: serverDto.isActive,
+            createdAt: serverDto.createdAt,
+            updatedAt: serverDto.updatedAt,
+          );
+          
+          return ProductSearchResponse(
+            result: ProductSearchResult.found,
+            productDto: updatedDto,
+          );
+        }
+      }
+
+      debugPrint('ℹ️ [SEARCH] Produit non trouvé');
       return ProductSearchResponse(
         result: ProductSearchResult.notFound,
+        errorMessage: 'Produit non trouvé localement et sur le serveur',
       );
-      
+
     } catch (e) {
+      debugPrint('❌ [SEARCH] Erreur: $e');
       return ProductSearchResponse(
         result: ProductSearchResult.invalidBarcode,
-        errorMessage: 'Error searching product: $e',
+        errorMessage: 'Erreur lors de la recherche: $e',
       );
     }
   }
@@ -457,6 +503,185 @@ class ProductService {
     } catch (e) {
       debugPrint('❌ Error getting deletion stats: $e');
       return {};
+    }
+  }
+  
+  /// Recherche locale d'un produit par code-barres
+  Future<ProductDto?> _searchLocalProduct(String barcode) async {
+    try {
+      // Validation du code-barres
+      final barcodeInt = int.tryParse(barcode);
+      if (barcodeInt == null || barcodeInt <= 0) {
+        return null;
+      }
+
+      // Recherche en base locale
+      final localProduct = await _database.getProductByBarcode(barcode);
+      return localProduct?.toDto();
+      
+    } catch (e) {
+      debugPrint('Error searching local product: $e');
+      return null;
+    }
+  }
+
+  /// ✅ NOUVEAU : Recherche sur le serveur
+  Future<Map<String, dynamic>?> _searchServerProduct(String barcode) async {
+    try {
+      debugPrint('🌐 [SERVER] Recherche produit sur serveur...');
+      
+      final product = await _serverService.getProductByBarcode(barcode);
+      
+      if (product != null) {
+        debugPrint('✅ [SERVER] Produit trouvé: ${product['name']}');
+        return product;
+      } else {
+        debugPrint('ℹ️ [SERVER] Produit non trouvé sur serveur');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('❌ [SERVER] Erreur recherche serveur: $e');
+      return null;
+    }
+  }
+
+  /// ✅ CORRECTION : Sauvegarder un produit venant du serveur
+  Future<int?> _saveProductFromServer(Map<String, dynamic> serverProduct) async {
+    try {
+      debugPrint('💾 [SYNC] Sauvegarde produit du serveur...');
+      
+      // Vérifier/créer les dépendances (marque, catégorie)
+      final brandId = await _ensureBrandExists(serverProduct);
+      final categoryId = await _ensureCategoryExists(serverProduct);
+      
+      // ✅ CORRECTION : Créer le ProductsCompanion avec les champs qui existent
+      final productCompanion = ProductsCompanion(
+        barcode: Value(int.tryParse(serverProduct['barcode'].toString()) ?? 0),
+        name: Value(serverProduct['name'] as String),
+        description: Value(serverProduct['description'] as String?),
+        brandId: Value(brandId),
+        categoryId: Value(categoryId),
+        imageUrl: Value(serverProduct['imageUrl'] as String?),
+        isActive: const Value(true),
+        scanCount: const Value(1),
+        lastScannedAt: Value(DateTime.now()),
+        createdAt: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now()),
+      );
+      
+      final productId = await _database.insertProduct(productCompanion);
+      debugPrint('✅ [SYNC] Produit sauvé avec ID: $productId');
+      
+      return productId;
+    } catch (e) {
+      debugPrint('❌ [SYNC] Erreur sauvegarde: $e');
+      return null;
+    }
+  }
+
+  /// ✅ NOUVEAU : S'assurer que la marque existe
+  Future<int?> _ensureBrandExists(Map<String, dynamic> serverProduct) async {
+    try {
+      final brandName = serverProduct['brand']?['name'] as String?;
+      if (brandName == null) return null;
+      
+      // Chercher la marque existante
+      final existingBrands = await _database.getAllBrands();
+      final existingBrand = existingBrands.where((b) => b.name == brandName).firstOrNull;
+      
+      if (existingBrand != null) {
+        return existingBrand.id;
+      }
+      
+      // Créer la nouvelle marque
+      final brandCompanion = BrandsCompanion(
+        name: Value(brandName),
+        isActive: const Value(true),
+        createdAt: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now()),
+      );
+      
+      final brandId = await _database.insertBrand(brandCompanion);
+      debugPrint('✅ [SYNC] Nouvelle marque créée: $brandName (ID: $brandId)');
+      
+      return brandId;
+    } catch (e) {
+      debugPrint('❌ [SYNC] Erreur création marque: $e');
+      return null;
+    }
+  }
+
+  /// ✅ NOUVEAU : S'assurer que la catégorie existe
+  Future<int?> _ensureCategoryExists(Map<String, dynamic> serverProduct) async {
+    try {
+      final categoryName = serverProduct['category']?['name'] as String?;
+      if (categoryName == null) return null;
+      
+      // Chercher la catégorie existante
+      final existingCategories = await _database.getAllCategories();
+      final existingCategory = existingCategories.where((c) => c.name == categoryName).firstOrNull;
+      
+      if (existingCategory != null) {
+        return existingCategory.id;
+      }
+      
+      // Créer la nouvelle catégorie
+      final categoryCompanion = CategoriesCompanion(
+        name: Value(categoryName),
+        isActive: const Value(true),
+        createdAt: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now()),
+      );
+      
+      final categoryId = await _database.insertCategory(categoryCompanion);
+      debugPrint('✅ [SYNC] Nouvelle catégorie créée: $categoryName (ID: $categoryId)');
+      
+      return categoryId;
+    } catch (e) {
+      debugPrint('❌ [SYNC] Erreur création catégorie: $e');
+      return null;
+    }
+  }
+
+  /// ✅ AMÉLIORATION : Convertir produit serveur en DTO avec gestion d'erreurs
+  ProductDto _convertServerProductToDto(Map<String, dynamic> serverProduct) {
+    try {
+      return ProductDto(
+        // ✅ Paramètres obligatoires avec validation
+        barcode: int.tryParse(serverProduct['barcode']?.toString() ?? '') ?? 0,
+        name: serverProduct['name']?.toString() ?? 'Produit sans nom',
+        
+        // ✅ Paramètres optionnels (selon votre ProductDto)
+        id: serverProduct['id'] as int?, // ID du serveur si disponible
+        brandId: serverProduct['brandId'] as int?, // Si le serveur renvoie l'ID
+        categoryId: serverProduct['categoryId'] as int?, // Si le serveur renvoie l'ID
+        description: serverProduct['description']?.toString(),
+        
+        // ✅ Images (selon votre ProductDto)
+        imageFileName: serverProduct['imageFileName']?.toString(),
+        imageUrl: serverProduct['imageUrl']?.toString(),
+        localImagePath: null, // Pas encore téléchargée localement
+        
+        // ✅ Métadonnées
+        isActive: serverProduct['isActive'] as bool? ?? true,
+        createdAt: serverProduct['createdAt'] != null 
+          ? DateTime.tryParse(serverProduct['createdAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+        updatedAt: serverProduct['updatedAt'] != null 
+          ? DateTime.tryParse(serverProduct['updatedAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+      );
+    } catch (e) {
+      debugPrint('❌ [CONVERT] Erreur conversion serveur vers DTO: $e');
+      // Retourner un DTO minimal en cas d'erreur
+      return ProductDto(
+        barcode: int.tryParse(serverProduct['barcode']?.toString() ?? '') ?? 0,
+        name: serverProduct['name']?.toString() ?? 'Produit inconnu',
+        description: 'Erreur lors de la conversion des données serveur',
+        isActive: false, // Marquer comme inactif en cas d'erreur
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
     }
   }
 }

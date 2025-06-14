@@ -5,6 +5,7 @@ import 'package:client_price_comparer/camera/barcode_scanner_widget.dart';
 import 'package:client_price_comparer/database/app_database.dart';
 import 'package:client_price_comparer/services/product_service.dart';
 import 'package:client_price_comparer/pages/product_details_page.dart';
+import 'package:shared_models/models/price/price_models.dart';
 import 'package:shared_models/models/product/productdto.dart';
 
 class ScanProductPage extends StatefulWidget {
@@ -20,6 +21,7 @@ class _ScanProductPageState extends State<ScanProductPage> with WidgetsBindingOb
   late final ProductService _productService;
   String? _scannedBarcode;
   bool _isScanning = true;
+  bool _isSearching = false; // ✅ Ajouter cette variable d'état
 
   @override
   void initState() {
@@ -65,36 +67,69 @@ class _ScanProductPageState extends State<ScanProductPage> with WidgetsBindingOb
   }
 
   Future<void> _handleBarcodeScanned(String barcode) async {
+    // ✅ Afficher un indicateur de recherche
+    _showSearchingIndicator();
+    
     final response = await _productService.searchProductByBarcode(barcode);
+    
+    // ✅ Cacher l'indicateur
+    _hideSearchingIndicator();
     
     switch (response.result) {
       case ProductSearchResult.found:
+        debugPrint('🎯 [NAVIGATION] Préparation navigation vers page détail...');
         _showProductFound(response.productDto!);
         break;
       case ProductSearchResult.notFound:
+        debugPrint('❌ [NAVIGATION] Produit non trouvé');
         _showProductNotFound(barcode);
         break;
       case ProductSearchResult.invalidBarcode:
+        debugPrint('❌ [NAVIGATION] Code-barres invalide');
         _showError(response.errorMessage!);
         break;
     }
   }
 
-  void _showProductFound(ProductDto productDto) {
-    // Navigate to product details page
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ProductDetailsPage(
-          product: productDto,
-          database: widget.db,
-          fromNotification: false,
-        ),
-      ),
-    ).then((_) {
-      // When user comes back from product details, reset scanner
-      _resetScanner();
+  void _showSearchingIndicator() {
+    setState(() {
+      _isSearching = true; // ✅ Ajouter cette variable d'état
     });
+  }
+
+  void _hideSearchingIndicator() {
+    setState(() {
+      _isSearching = false;
+    });
+  }
+
+  void _showProductFound(ProductDto product) {
+    debugPrint('🎯 [NAVIGATION] Début navigation vers ProductDetailsPage...');
+    debugPrint('🎯 [NAVIGATION] Produit: ${product.name} (ID: ${product.id})');
+    
+    try {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) {
+            debugPrint('🎯 [NAVIGATION] Construction ProductDetailsPage...');
+            return ProductDetailsPage(
+              product: product,
+              database: widget.db,
+              initialMode: ProductDisplayModeTmp.minimal,
+            );
+          },
+        ),
+      ).then((_) {
+        debugPrint('🎯 [NAVIGATION] Retour de ProductDetailsPage');
+      }).catchError((error) {
+        debugPrint('❌ [NAVIGATION] Erreur navigation: $error');
+      });
+      
+      debugPrint('✅ [NAVIGATION] Navigation lancée avec succès');
+    } catch (e) {
+      debugPrint('❌ [NAVIGATION] Exception navigation: $e');
+      _showError('Erreur navigation: $e');
+    }
   }
 
   void _showProductNotFound(String barcode) {
@@ -200,7 +235,15 @@ class _ScanProductPageState extends State<ScanProductPage> with WidgetsBindingOb
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                     const SizedBox(height: 16),
-                    const Text('Searching in database...'),
+                    if (_isSearching) ...[
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      const Text('Searching in local database...'),
+                      const SizedBox(height: 8),
+                      const Text('If not found, will check server...'),
+                    ] else ...[
+                      const Text('Search completed'),
+                    ],
                   ],
                 ),
               ),

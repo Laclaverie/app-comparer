@@ -10,6 +10,7 @@ part 'price_promotion.g.dart';
 class PricePromotion {
   final PromotionType type;
   final String description;
+  final double? originalPrice; // Optional original price for reference
   
   // Keep the flexible Map but add type-safe getters
   final Map<String, dynamic> parameters;
@@ -26,6 +27,7 @@ class PricePromotion {
     required this.parameters,
     this.validFrom,
     this.validTo,
+    this.originalPrice,
   });
 
   // ====== TYPE-SAFE GETTERS ======
