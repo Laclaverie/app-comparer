@@ -198,7 +198,7 @@ class StoreComparisonWidget extends StatelessWidget {
                   ),
                 ),
               );
-            }).toList(),
+            }),
             
             if (selectedStore != null) ...[
               const SizedBox(height: 12),

@@ -1,6 +1,6 @@
 import 'package:test/test.dart';
 import 'package:drift/drift.dart' hide isNull;
-import 'package:shared_models/productdto.dart';
+import 'package:shared_models/models/product/productdto.dart';
 import '../../lib/data_database.dart';
 import '../../lib/extensions/product_extensions.dart';
 

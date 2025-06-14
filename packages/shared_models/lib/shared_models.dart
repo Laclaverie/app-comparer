@@ -1,9 +1,15 @@
 library shared_models;
 
-// Export des tables de base de données
-export 'models/database/tables_product.dart';
+// Export all models
+export 'models/product/product.dart';
+export 'models/store/store_price.dart';
+export 'models/price/price_models.dart';
+export 'models/price/price_point.dart';
+export 'models/product/product_statistics.dart';
+export 'models/unit/unit_type.dart';
 
-// Export DTO
-export 'productdto.dart';
-
-export 'models/unit/unit_models.dart';
+// ✅ Export database models
+export 'models/database/database.dart';
+export 'models/brand/brand_dto.dart';
+export 'models/category/category_dto.dart';
+export 'models/supermarket/supermarket_dto.dart';

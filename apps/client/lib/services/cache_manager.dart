@@ -1,6 +1,7 @@
 // apps/client/lib/services/cache_manager.dart
 import 'dart:collection';
 import 'package:client_price_comparer/database/database_wrapper.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:shared_models/models/price/price_point.dart';
 import 'package:shared_models/models/store/store_price.dart';
 
@@ -36,9 +37,9 @@ class CacheManager {
         await _dbWrapper.keepOnlyRecentEntries(maxDbEntries);
       }
       
-      print('Database cleanup completed. Entries: $totalEntries');
+      debugPrint('Database cleanup completed. Entries: $totalEntries');
     } catch (e) {
-      print('Database cleanup failed: $e');
+      debugPrint('Database cleanup failed: $e');
     }
   }
 

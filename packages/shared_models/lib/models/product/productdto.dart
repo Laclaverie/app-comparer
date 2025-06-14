@@ -3,16 +3,21 @@ import 'package:json_annotation/json_annotation.dart';
 part 'productdto.g.dart';
 
 @JsonSerializable()
-class ProductDto {  // ← DTO = Data Transfer Object
+class ProductDto {
   final int? id;
-  final int barcode;
+  final int barcode;           // ✅ Reste int
   final String name;
-  final int? brandId;
-  final int? categoryId;
-  final String? imageFileName;     // ← Nom du fichier image
-  final String? imageUrl;          // ← URL pour téléchargement (généré par serveur)
-  final String? localImagePath;    // ← Chemin local sur l'app client
+  final int? brandId;          // ✅ ID au lieu de String
+  final int? categoryId;       // ✅ ID au lieu de String
+  final String? imageFileName;
+  final String? imageUrl;
+  final String? localImagePath;
   final String? description;
+  
+  // ✅ AJOUTS demandés
+  final bool isActive;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   ProductDto({
     this.id,
@@ -24,6 +29,9 @@ class ProductDto {  // ← DTO = Data Transfer Object
     this.imageUrl,
     this.localImagePath,
     this.description,
+    this.isActive = true,        // ✅ Défaut à true
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory ProductDto.fromJson(Map<String, dynamic> json) => _$ProductDtoFromJson(json);
@@ -39,6 +47,9 @@ class ProductDto {  // ← DTO = Data Transfer Object
     String? imageUrl,
     String? localImagePath,
     String? description,
+    bool? isActive,
+    DateTime? createdAt,
+    DateTime? updatedAt,
   }) {
     return ProductDto(
       id: id ?? this.id,
@@ -50,6 +61,12 @@ class ProductDto {  // ← DTO = Data Transfer Object
       imageUrl: imageUrl ?? this.imageUrl,
       localImagePath: localImagePath ?? this.localImagePath,
       description: description ?? this.description,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
+
+  @override
+  String toString() => 'ProductDto(id: $id, name: $name, barcode: $barcode, isActive: $isActive)';
 }

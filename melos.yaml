@@ -25,8 +25,9 @@ scripts:
        - Note: you can also rely on your IDEs Dart Analysis / Issues window.
 
   clean:
-    run: |
-      melos exec -- "flutter clean"
+    steps:
+      - melos exec -- "flutter clean"
+      - melos exec -- "dart run build_runner clean"
     description: Clean all Flutter projects
 
   get:
@@ -65,6 +66,7 @@ scripts:
       - melos run build:shared
       - melos run build:apps
       - melos run build:servers
+      - melos exec  -- "dart run build_runner build --delete-conflicting-outputs"
     description: Build all projects in correct dependency order
 
   dev:auto:

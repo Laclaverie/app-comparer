@@ -1,6 +1,6 @@
 import '../data_database.dart';
 import '../extensions/product_extensions.dart';
-import 'package:shared_models/productdto.dart';
+import 'package:shared_models/models/product/productdto.dart';
 import 'package:data_server/services/image_service.dart';
 
 class ProductService {

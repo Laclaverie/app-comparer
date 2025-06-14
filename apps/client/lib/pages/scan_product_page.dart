@@ -1,9 +1,11 @@
 import 'package:client_price_comparer/services/camera_service.dart';
 import 'package:flutter/material.dart';
+
 import 'package:client_price_comparer/camera/barcode_scanner_widget.dart';
 import 'package:client_price_comparer/database/app_database.dart';
 import 'package:client_price_comparer/services/product_service.dart';
 import 'package:client_price_comparer/pages/product_details_page.dart';
+import 'package:shared_models/models/product/productdto.dart';
 
 class ScanProductPage extends StatefulWidget {
   final AppDatabase db;
@@ -67,7 +69,7 @@ class _ScanProductPageState extends State<ScanProductPage> with WidgetsBindingOb
     
     switch (response.result) {
       case ProductSearchResult.found:
-        _showProductFound(response.product!);
+        _showProductFound(response.productDto!);
         break;
       case ProductSearchResult.notFound:
         _showProductNotFound(barcode);
@@ -78,13 +80,13 @@ class _ScanProductPageState extends State<ScanProductPage> with WidgetsBindingOb
     }
   }
 
-  void _showProductFound(Product product) {
+  void _showProductFound(ProductDto productDto) {
     // Navigate to product details page
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ProductDetailsPage(
-          product: product,
+          product: productDto,
           database: widget.db,
           fromNotification: false,
         ),

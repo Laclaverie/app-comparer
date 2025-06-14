@@ -11,6 +11,7 @@ import 'package:client_price_comparer/widgets/product_details/unit_price_compari
 import 'package:client_price_comparer/widgets/product_details/product_statistics_widget.dart';
 import 'package:client_price_comparer/widgets/product_details/product_action_buttons_widget.dart';
 // models
+import 'package:shared_models/models/product/productdto.dart'; // ✅ CHANGEMENT
 import 'package:shared_models/models/store/store_price.dart';
 import 'package:shared_models/models/price/price_models.dart';
 import 'package:shared_models/models/price/price_point.dart';
@@ -18,7 +19,7 @@ import 'package:shared_models/models/product/product_statistics.dart';
 import 'package:shared_models/models/unit/unit_type.dart';
 
 class ProductDetailsPage extends StatefulWidget {
-  final Product product;
+  final ProductDto product; // ✅ CHANGEMENT : ProductDto au lieu de Product
   final AppDatabase database;
   final ProductDisplayMode initialMode;
   final bool fromNotification;
@@ -38,13 +39,13 @@ class ProductDetailsPage extends StatefulWidget {
 class _ProductDetailsPageState extends State<ProductDetailsPage> {
   late ProductDetailsService _productDetailsService;
   bool _isLoading = true;
-  Product? _product;
+  ProductDto? _product; // ✅ CHANGEMENT : ProductDto au lieu de Product
   ProductDisplayMode _currentMode = ProductDisplayMode.minimal;
-  String? selectedStore; // État pour le magasin sélectionné
+  String? selectedStore;
 
-  // ✅ AJOUTER : Cache des données en état local
+  // ✅ Cache des données en état local
   List<StorePrice>? _cachedStorePrices;
-  Map<String, List<PricePoint>> _cachedPriceHistory = {}; // Par storeFilter
+  final Map<String, List<PricePoint>> _cachedPriceHistory = {};
   bool _isLoadingStorePrices = false;
   bool _isLoadingPriceHistory = false;
   String? _lastError;
@@ -54,7 +55,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     super.initState();
     _productDetailsService = ProductDetailsService(widget.database);
     _loadProduct();
-    _loadInitialData(); // ✅ Charger les données une fois
+    _loadInitialData();
   }
 
   Future<void> _loadProduct() async {
@@ -62,7 +63,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     
     try {
       setState(() {
-        _product = widget.product;
+        _product = widget.product; // ✅ ProductDto
         _currentMode = widget.initialMode;
         _isLoading = false;
       });
@@ -74,9 +75,9 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     }
   }
 
-  /// ✅ NOUVEAU : Charger les données initiales une seule fois
+  /// ✅ Charger les données initiales une seule fois
   Future<void> _loadInitialData() async {
-    if (_product == null) return;
+    if (_product == null || _product!.id == null) return;
 
     try {
       // Charger les prix magasins
@@ -89,14 +90,14 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     }
   }
 
-  /// ✅ NOUVEAU : Charger les prix magasins sans reconstruction
+  /// ✅ Charger les prix magasins sans reconstruction
   Future<void> _loadStorePrices() async {
-    if (_cachedStorePrices != null) return; // Déjà chargé
+    if (_cachedStorePrices != null || _product?.id == null) return;
     
     setState(() => _isLoadingStorePrices = true);
     
     try {
-      final storePrices = await _productDetailsService.getStorePrices(_product!.id);
+      final storePrices = await _productDetailsService.getStorePrices(_product!.id!);
       if (mounted) {
         setState(() {
           _cachedStorePrices = storePrices;
@@ -114,8 +115,10 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     }
   }
 
-  /// ✅ NOUVEAU : Charger l'historique sans reconstruction
+  /// ✅ Charger l'historique sans reconstruction
   Future<void> _loadPriceHistory(String? storeFilter) async {
+    if (_product?.id == null) return;
+    
     final key = storeFilter ?? 'all';
     
     // Si déjà en cache, pas besoin de recharger
@@ -125,7 +128,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     
     try {
       final priceHistory = await _productDetailsService.getPriceHistory(
-        _product!.id,
+        _product!.id!,
         storeFilter: storeFilter,
       );
       
@@ -146,7 +149,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     }
   }
 
-  /// ✅ MODIFIER : Gestion de sélection sans reconstruction totale
+  /// ✅ Gestion de sélection sans reconstruction totale
   void _onStoreSelected(String storeName) async {
     // Toggle selection
     final newSelection = selectedStore == storeName ? null : storeName;
@@ -161,7 +164,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     }
   }
 
-  /// ✅ NOUVEAU : Rafraîchir manuellement les données
+  /// ✅ Rafraîchir manuellement les données
   Future<void> _refreshData() async {
     // Vider les caches pour forcer le rechargement
     _cachedStorePrices = null;
@@ -222,7 +225,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           ),
           IconButton(
             icon: const Icon(Icons.refresh_outlined),
-            onPressed: _refreshData, // ✅ Refresh manuel
+            onPressed: _refreshData,
             tooltip: 'Refresh data',
           ),
         ],
@@ -240,11 +243,11 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             )
           : _product == null
               ? const Center(child: Text('Product not found'))
-              : _buildMainContent(), // ✅ NOUVEAU : Content sans FutureBuilder
+              : _buildMainContent(),
     );
   }
 
-  /// ✅ NOUVEAU : Contenu principal sans FutureBuilder
+  /// ✅ Contenu principal sans FutureBuilder
   Widget _buildMainContent() {
     // Vérifier si on a les données de base
     if (_cachedStorePrices == null && _isLoadingStorePrices) {
@@ -289,8 +292,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           children: [
             // Product Header
             ProductHeaderWidget(
-              product: _product!,
-              fromNotification: widget.fromNotification,
+              product: _product!, // ✅ ProductDto
             ),
             const SizedBox(height: 24),
             
@@ -303,17 +305,17 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
               const SizedBox(height: 24),
             ],
             
-            // Store Comparison avec callback optimisé
+            // Store Comparison
             if (_cachedStorePrices != null) ...[
               StoreComparisonWidget(
                 storePrices: _cachedStorePrices!,
                 selectedStore: selectedStore,
-                onStoreSelected: _onStoreSelected, // ✅ Callback optimisé
+                onStoreSelected: _onStoreSelected,
               ),
               const SizedBox(height: 24),
             ],
             
-            // Price Chart avec indicateur de chargement
+            // Price Chart
             _buildPriceChart(),
             
             // Section Advanced Mode
@@ -354,7 +356,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
               // Product Actions
               ProductActionButtonsWidget(
-                productId: _product!.id,
+                productId: _product!.id!,
                 productDetailsService: _productDetailsService,
                 onPriceAlert: _showPriceAlertDialog,
                 onDelete: _showDeleteConfirmation,
@@ -368,7 +370,171 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     );
   }
 
-  /// ✅ NOUVEAU : Construire le graphique avec indicateur de chargement
+  /// ✅ Build statistics widget avec cache
+  Widget _buildProductStatistics() {
+    if (_product?.id == null) return const SizedBox.shrink();
+    
+    return FutureBuilder<ProductStatistics>(
+      future: _productDetailsService.getProductStatistics(_product!.id!),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Card(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        }
+        
+        if (snapshot.hasData) {
+          return ProductStatisticsWidget(statistics: snapshot.data!);
+        }
+        
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  /// ✅ Prix alert avec null safety
+  void _showPriceAlertDialog() {
+    if (_product?.id == null) return;
+    
+    final controller = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.notifications_outlined, color: Theme.of(context).primaryColor),
+            const SizedBox(width: 8),
+            const Text('Set Price Alert'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Get notified when "${_product?.name ?? 'this product'}" drops below your target price.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Target Price (€)',
+                border: OutlineInputBorder(),
+                prefixText: '€ ',
+                helperText: 'You\'ll receive a notification when any store offers this price',
+              ),
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final priceText = controller.text.trim();
+              final price = double.tryParse(priceText);
+              
+              if (price == null || price <= 0) {
+                _showError('Please enter a valid price');
+                return;
+              }
+              
+              Navigator.pop(context);
+              
+              try {
+                final success = await _productDetailsService.setPriceAlert(_product!.id!, price);
+                if (success) {
+                  _showSuccess('Price alert set for €${price.toStringAsFixed(2)}');
+                } else {
+                  _showError('Failed to set price alert');
+                }
+              } catch (e) {
+                _showError('Error setting price alert: $e');
+              }
+            },
+            child: const Text('Set Alert'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// ✅ Delete confirmation avec null safety
+  void _showDeleteConfirmation() {
+    if (_product?.id == null) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.delete_outline, color: Colors.red[600]),
+            const SizedBox(width: 8),
+            const Text('Delete Product'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Are you sure you want to delete "${_product?.name ?? 'this product'}"?'),
+            const SizedBox(height: 8),
+            const Text(
+              'This action cannot be undone. All price history and alerts will be permanently removed.',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              
+              try {
+                final success = await _productDetailsService.deleteProduct(_product!.id!);
+                if (success) {
+                  if (mounted) {
+                    Navigator.pop(context);
+                    _showSuccess('Product deleted successfully');
+                  }
+                } else {
+                  _showError('Failed to delete product');
+                }
+              } catch (e) {
+                _showError('Error deleting product: $e');
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red[600],
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// ✅ Obtenir l'historique actuel selon le filtre
+  List<PricePoint> _getCurrentPriceHistory() {
+    final key = selectedStore ?? 'all';
+    return _cachedPriceHistory[key] ?? [];
+  }
+
+  // ✅ Build price chart avec indicateur de chargement
   Widget _buildPriceChart() {
     final currentHistory = _getCurrentPriceHistory();
     
@@ -428,164 +594,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
               ),
           ],
         ),
-      ),
-    );
-  }
-
-  /// ✅ NOUVEAU : Build statistics widget avec cache
-  Widget _buildProductStatistics() {
-    return FutureBuilder<ProductStatistics>(
-      future: _productDetailsService.getProductStatistics(_product!.id),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Card(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Center(child: CircularProgressIndicator()),
-            ),
-          );
-        }
-        
-        if (snapshot.hasData) {
-          return ProductStatisticsWidget(statistics: snapshot.data!);
-        }
-        
-        return const SizedBox.shrink();
-      },
-    );
-  }
-
-  /// ✅ NOUVEAU : Obtenir l'historique actuel selon le filtre
-  List<PricePoint> _getCurrentPriceHistory() {
-    final key = selectedStore ?? 'all';
-    return _cachedPriceHistory[key] ?? [];
-  }
-
-  /// Affiche le dialog pour définir une alerte de prix
-  void _showPriceAlertDialog() {
-    final controller = TextEditingController();
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.notifications_outlined, color: Theme.of(context).primaryColor),
-            const SizedBox(width: 8),
-            const Text('Set Price Alert'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Get notified when "${_product?.name ?? 'this product'}" drops below your target price.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'Target Price (€)',
-                border: OutlineInputBorder(),
-                prefixText: '€ ',
-                helperText: 'You\'ll receive a notification when any store offers this price',
-              ),
-              autofocus: true,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final priceText = controller.text.trim();
-              final price = double.tryParse(priceText);
-              
-              if (price == null || price <= 0) {
-                _showError('Please enter a valid price');
-                return;
-              }
-              
-              Navigator.pop(context);
-              
-              try {
-                final success = await _productDetailsService.setPriceAlert(_product!.id, price);
-                if (success) {
-                  _showSuccess('Price alert set for €${price.toStringAsFixed(2)}');
-                } else {
-                  _showError('Failed to set price alert');
-                }
-              } catch (e) {
-                _showError('Error setting price alert: $e');
-              }
-            },
-            child: const Text('Set Alert'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Affiche le dialog de confirmation pour supprimer le produit
-  void _showDeleteConfirmation() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.delete_outline, color: Colors.red[600]),
-            const SizedBox(width: 8),
-            const Text('Delete Product'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Are you sure you want to delete "${_product?.name ?? 'this product'}"?'),
-            const SizedBox(height: 8),
-            const Text(
-              'This action cannot be undone. All price history and alerts will be permanently removed.',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              
-              try {
-                final success = await _productDetailsService.deleteProduct(_product!.id);
-                if (success) {
-                  if (mounted) {
-                    Navigator.pop(context); // Retour à la page précédente
-                    _showSuccess('Product deleted successfully');
-                  }
-                } else {
-                  _showError('Failed to delete product');
-                }
-              } catch (e) {
-                _showError('Error deleting product: $e');
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red[600],
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
       ),
     );
   }

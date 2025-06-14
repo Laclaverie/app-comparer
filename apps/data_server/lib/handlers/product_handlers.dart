@@ -4,7 +4,7 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 import '../services/product_service.dart';
 import 'package:data_server/services/image_service.dart';
-import 'package:shared_models/productdto.dart';
+import 'package:shared_models/models/product/productdto.dart';
 
 class ProductHandlers {
   final ProductService productService;

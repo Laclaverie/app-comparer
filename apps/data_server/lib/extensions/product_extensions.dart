@@ -1,4 +1,4 @@
-import 'package:shared_models/productdto.dart';
+import 'package:shared_models/models/product/productdto.dart';
 import 'package:drift/drift.dart';
 import '../data_database.dart';
 

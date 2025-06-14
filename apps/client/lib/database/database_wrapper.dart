@@ -1,11 +1,17 @@
-// apps/client/lib/database/database_wrapper.dart
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:shared_models/models/product/productdto.dart';
 import 'app_database.dart';
+import 'mappers/product_mapper.dart';
 
 class DatabaseWrapper {
   final AppDatabase _database;
 
   DatabaseWrapper(this._database);
+
+  // ===========================================
+  // MÉTHODES PRIX AVEC MAGASINS
+  // ===========================================
 
   /// Récupérer le prix le plus récent par magasin pour un produit
   Future<List<PriceHistoryWithStore>> getLatestPricesByStore(int productId) async {
@@ -80,6 +86,10 @@ class DatabaseWrapper {
     }
   }
 
+  // ===========================================
+  // MÉTHODES MAGASINS
+  // ===========================================
+
   /// Récupérer ou créer un magasin
   Future<int> getOrCreateStore(String storeName) async {
     try {
@@ -91,16 +101,21 @@ class DatabaseWrapper {
         return existing.id;
       }
       
-      return await _database.into(_database.supermarkets).insert(
-        SupermarketsCompanion(
-          name: Value(storeName),
-          location: const Value.absent(),
-        ),
-      );
+      // ✅ CORRECTION : Utiliser les champs corrects
+      return await _database.insertSupermarket(SupermarketsCompanion.insert(
+        name: storeName,
+        address: const Value(''), // ✅ address au lieu de location
+        city: const Value(''),
+        isActive: const Value(true),
+      ));
     } catch (e) {
       throw Exception('Failed to get or create store: $e');
     }
   }
+
+  // ===========================================
+  // MÉTHODES HISTORIQUE PRIX
+  // ===========================================
 
   /// Récupérer la dernière mise à jour pour un produit
   Future<DateTime?> getLastUpdateTime(int productId) async {
@@ -125,20 +140,21 @@ class DatabaseWrapper {
     required DateTime date,
     bool isPromotion = false,
     String? promotionDescription,
+    double? originalPrice,
+    String source = 'manual',
   }) async {
     try {
-      await _database.into(_database.priceHistory).insertOnConflictUpdate(
-        PriceHistoryCompanion(
-          productId: Value(productId),
-          supermarketId: Value(supermarketId),
-          price: Value(price),
-          date: Value(date),
-          isPromotion: Value(isPromotion),
-          promotionDescription: promotionDescription != null 
-              ? Value(promotionDescription)
-              : const Value.absent(),
-        ),
-      );
+      await _database.insertPriceHistory(PriceHistoryCompanion.insert(
+        productId: productId,
+        supermarketId: supermarketId,
+        price: price,
+        date: date,
+        isPromotion: Value(isPromotion),
+        promotionDescription: Value(promotionDescription),
+        originalPrice: Value(originalPrice),
+        source: Value(source),
+        isValidated: const Value(false),
+      ));
     } catch (e) {
       throw Exception('Failed to save price history: $e');
     }
@@ -157,6 +173,112 @@ class DatabaseWrapper {
     }
   }
 
+  // ===========================================
+  // MÉTHODES PRODUITS - ✅ MISE À JOUR COMPLÈTE
+  // ===========================================
+
+  /// Sauvegarder un produit scanné depuis un DTO
+  Future<void> saveScannedProductFromDto(ProductDto productDto) async {
+    try {
+      final existing = await _database.getProductById(productDto.id!);
+      
+      if (existing != null) {
+        // Mettre à jour en préservant les données de cache
+        final updateCompanion = productDto.toUpdateCompanion(
+          existingId: existing.id,
+          lastScannedAt: DateTime.now(), // ✅ Marquer comme scanné maintenant
+          scanCount: existing.scanCount + 1, // ✅ Incrémenter le compteur
+          isCachedLocally: true,
+        );
+        await _database.updateProduct(updateCompanion);
+      } else {
+        // Insérer nouveau produit
+        final insertCompanion = productDto.toInsertCompanion().copyWith(
+          lastScannedAt: Value(DateTime.now()),
+          scanCount: const Value(1),
+        );
+        await _database.insertProduct(insertCompanion);
+      }
+      
+      debugPrint('Product ${productDto.name} saved to local database');
+    } catch (e) {
+      throw Exception('Failed to save product: $e');
+    }
+  }
+
+  /// Récupérer un produit local et le convertir en DTO
+  Future<ProductDto?> getLocalProductAsDto(int productId) async {
+    try {
+      final result = await _database.getProductById(productId);
+      return result?.toDto();
+    } catch (e) {
+      throw Exception('Failed to get local product: $e');
+    }
+  }
+
+  /// Récupérer un produit par code-barres
+  Future<ProductDto?> getProductByBarcodeAsDto(int barcode) async {
+    try {
+      final result = await (_database.select(_database.products)
+        ..where((tbl) => tbl.barcode.equals(barcode)))
+        .getSingleOrNull();
+      
+      return result?.toDto();
+    } catch (e) {
+      throw Exception('Failed to get product by barcode: $e');
+    }
+  }
+
+  /// Récupérer tous les produits scannés récemment
+  Future<List<ProductDto>> getRecentlyScannedProducts({int limitDays = 30}) async {
+    try {
+      final cutoffDate = DateTime.now().subtract(Duration(days: limitDays));
+      
+      final results = await (_database.select(_database.products)
+        ..where((tbl) => 
+            tbl.lastScannedAt.isNotNull() & 
+            tbl.lastScannedAt.isBiggerThanValue(cutoffDate))
+        ..orderBy([(tbl) => OrderingTerm.desc(tbl.lastScannedAt)]))
+        .get();
+      
+      return results.map((result) => result.toDto()).toList();
+    } catch (e) {
+      throw Exception('Failed to get recent products: $e');
+    }
+  }
+
+  /// Mettre à jour le timestamp de scan
+  Future<void> updateLastScannedAt(int productId) async {
+    try {
+      final existing = await _database.getProductById(productId);
+      if (existing != null) {
+        await (_database.update(_database.products)
+          ..where((tbl) => tbl.id.equals(productId)))
+          .write(ProductsCompanion(
+            lastScannedAt: Value(DateTime.now()),
+            scanCount: Value(existing.scanCount + 1),
+            updatedAt: Value(DateTime.now()),
+          ));
+      }
+    } catch (e) {
+      throw Exception('Failed to update last scanned: $e');
+    }
+  }
+
+  /// Vérifier si un produit existe en local
+  Future<bool> hasLocalProduct(int productId) async {
+    try {
+      final result = await _database.getProductById(productId);
+      return result != null;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // ===========================================
+  // MÉTHODES DE NETTOYAGE
+  // ===========================================
+
   /// Nettoyer les anciennes données (plus de X jours)
   Future<void> cleanOldPriceHistory({int keepDays = 90}) async {
     try {
@@ -167,6 +289,24 @@ class DatabaseWrapper {
         .go();
     } catch (e) {
       // Log l'erreur mais ne pas faire échouer l'app
+      debugPrint('Warning: Failed to clean old price history: $e');
+    }
+  }
+
+  /// Nettoyer les anciens produits pour contrôler la taille
+  Future<void> cleanupOldProducts({int keepDays = 180}) async {
+    try {
+      final cutoffDate = DateTime.now().subtract(Duration(days: keepDays));
+      
+      await (_database.delete(_database.products)
+        ..where((tbl) => 
+            tbl.lastScannedAt.isNotNull() & 
+            tbl.lastScannedAt.isSmallerThanValue(cutoffDate)))
+        .go();
+        
+      debugPrint('Cleaned up products older than $keepDays days');
+    } catch (e) {
+      throw Exception('Failed to cleanup old products: $e');
     }
   }
 
@@ -181,6 +321,10 @@ class DatabaseWrapper {
     }
   }
 
+  // ===========================================
+  // MÉTHODES STATISTIQUES
+  // ===========================================
+
   /// Compter le nombre total d'entrées dans l'historique
   Future<int> countPriceHistoryEntries() async {
     try {
@@ -191,21 +335,45 @@ class DatabaseWrapper {
     }
   }
 
+  /// Obtenir la taille approximative de la base de données
+  Future<Map<String, int>> getDatabaseStats() async {
+    try {
+      final priceHistoryCount = await _database.select(_database.priceHistory).get();
+      final supermarketsCount = await _database.select(_database.supermarkets).get();
+      final productsCount = await _database.select(_database.products).get();
+      final brandsCount = await _database.select(_database.brands).get();
+      final categoriesCount = await _database.select(_database.categories).get();
+      
+      return {
+        'priceHistory': priceHistoryCount.length,
+        'supermarkets': supermarketsCount.length,
+        'products': productsCount.length,
+        'brands': brandsCount.length,
+        'categories': categoriesCount.length,
+      };
+    } catch (e) {
+      throw Exception('Failed to get database stats: $e');
+    }
+  }
+
   /// Garder seulement les N entrées les plus récentes
   Future<void> keepOnlyRecentEntries(int maxEntries) async {
     try {
-      // Récupérer les IDs des entrées les plus anciennes
-      final oldEntries = await (_database.select(_database.priceHistory)
+      final totalCount = await countPriceHistoryEntries();
+      if (totalCount <= maxEntries) return;
+
+      // Récupérer les IDs des entrées à garder
+      final entriesToKeep = await (_database.select(_database.priceHistory)
         ..orderBy([
           (tbl) => OrderingTerm.desc(tbl.date),
         ])
-        ..limit(maxEntries, offset: maxEntries))
+        ..limit(maxEntries))
         .get();
 
-      if (oldEntries.isNotEmpty) {
-        final idsToDelete = oldEntries.map((e) => e.id).toList();
+      if (entriesToKeep.isNotEmpty) {
+        final idsToKeep = entriesToKeep.map((e) => e.id).toList();
         await (_database.delete(_database.priceHistory)
-          ..where((tbl) => tbl.id.isNotIn(idsToDelete)))
+          ..where((tbl) => tbl.id.isNotIn(idsToKeep)))
           .go();
       }
     } catch (e) {
@@ -213,39 +381,55 @@ class DatabaseWrapper {
     }
   }
 
-  /// Obtenir la taille approximative de la base de données
-  Future<Map<String, int>> getDatabaseStats() async {
-    try {
-      final priceHistoryCount = await _database.select(_database.priceHistory).get();
-      final supermarketsCount = await _database.select(_database.supermarkets).get();
-      final productsCount = await _database.select(_database.products).get();
-      
-      return {
-        'priceHistory': priceHistoryCount.length,
-        'supermarkets': supermarketsCount.length,
-        'products': productsCount.length,
-      };
-    } catch (e) {
-      throw Exception('Failed to get database stats: $e');
-    }
-  }
-
   /// Nettoyage intelligent : supprimer les doublons
   Future<void> removeDuplicatePrices() async {
     try {
-      // Identifier les doublons (même produit, magasin, prix et date proche)
-      final query = '''
-        DELETE FROM price_history 
-        WHERE id NOT IN (
-          SELECT MIN(id) 
-          FROM price_history 
-          GROUP BY product_id, supermarket_id, price, DATE(date)
-        )
-      ''';
-      
-      await _database.customStatement(query);
+      // Note: Cette query SQL brute pourrait ne pas marcher selon la DB
+      // Alternative plus sûre : récupérer en Dart et supprimer
+      final allPrices = await _database.select(_database.priceHistory).get();
+      final seen = <String, int>{};
+      final duplicateIds = <int>[];
+
+      for (final price in allPrices) {
+        final key = '${price.productId}_${price.supermarketId}_${price.price.toStringAsFixed(2)}_${price.date.day}';
+        if (seen.containsKey(key)) {
+          duplicateIds.add(price.id);
+        } else {
+          seen[key] = price.id;
+        }
+      }
+
+      if (duplicateIds.isNotEmpty) {
+        await (_database.delete(_database.priceHistory)
+          ..where((tbl) => tbl.id.isIn(duplicateIds)))
+          .go();
+        debugPrint('Removed ${duplicateIds.length} duplicate prices');
+      }
     } catch (e) {
       throw Exception('Failed to remove duplicate prices: $e');
+    }
+  }
+
+  // ===========================================
+  // MÉTHODES SYNCHRONISATION
+  // ===========================================
+
+  /// Récupérer les produits non synchronisés
+  Future<List<ProductDto>> getUnsyncedProducts() async {
+    try {
+      final products = await _database.getUnsyncedProducts();
+      return products.map((p) => p.toDtoForSync()).toList();
+    } catch (e) {
+      throw Exception('Failed to get unsynced products: $e');
+    }
+  }
+
+  /// Marquer un produit comme synchronisé
+  Future<void> markProductAsSynced(int productId) async {
+    try {
+      await _database.markProductAsSynced(productId);
+    } catch (e) {
+      throw Exception('Failed to mark product as synced: $e');
     }
   }
 }
@@ -253,10 +437,18 @@ class DatabaseWrapper {
 /// Classe helper pour retourner prix + magasin
 class PriceHistoryWithStore {
   final PriceHistoryData priceHistory;
-  final Supermarket? supermarket; // ✅ Correction : Supermarket au lieu de SupermarketsData
+  final Supermarket? supermarket; // ✅ Correct
 
   PriceHistoryWithStore({
     required this.priceHistory,
     this.supermarket,
   });
+
+  /// Helper pour affichage
+  String get storeName => supermarket?.name ?? 'Magasin inconnu';
+  String get storeAddress => supermarket?.address ?? '';
+  double get price => priceHistory.price;
+  DateTime get date => priceHistory.date;
+  bool get isPromotion => priceHistory.isPromotion;
+  String? get promotionDescription => priceHistory.promotionDescription;
 }

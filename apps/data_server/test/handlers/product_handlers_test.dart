@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:data_server/services/image_service.dart' show ImageService;
 import 'package:test/test.dart';
 import 'package:shelf/shelf.dart';
-import 'package:shared_models/productdto.dart';
+import 'package:shared_models/models/product/productdto.dart';
 import '../../lib/data_database.dart';
 import '../../lib/services/product_service.dart';
 import '../../lib/handlers/product_handlers.dart';

@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:shared_models/productdto.dart';
+import 'package:shared_models/models/product/productdto.dart';
 
 class DataServerClient {
   final String baseUrl;

@@ -75,30 +75,50 @@ class _DebugPageState extends State<DebugPage> {
       return;
     }
 
-    // Dialogue pour saisir les infos du produit
     final result = await _showAddProductDialog(_barcode!);
     
     if (result != null) {
       try {
-        final response = await _serverService.addProductToTestDB(result);
-        if (response) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('✅ Produit ${result['name']} ajouté à la base de test'),
-                backgroundColor: Colors.green,
-              ),
-            );
+        debugPrint('🚀 [DEBUG] Payload envoyé au serveur:');
+        debugPrint('   - barcode: ${result['barcode']}');
+        debugPrint('   - name: ${result['name']}');
+        debugPrint('   - description: ${result['description']}');
+        debugPrint('   - payload complet: $result');
+        
+        // ✅ Essayer d'abord d'ajouter
+        bool success = await _serverService.addProductToTestDB(result);
+        
+        // ✅ Si échec à cause d'un doublon, proposer de mettre à jour
+        if (!success) {
+          final shouldUpdate = await _showUpdateConfirmDialog(result['name']);
+          if (shouldUpdate == true) {
+            success = await _serverService.updateProductInTestDB(result);
+            
+            if (success && mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('✅ Produit ${result['name']} mis à jour avec succès'),
+                  backgroundColor: Colors.blue,
+                ),
+              );
+            }
           }
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('❌ Erreur lors de l\'ajout'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ Produit ${result['name']} ajouté à la base de test'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+        
+        if (!success && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('❌ Erreur lors de l\'opération'),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
       } catch (e) {
         if (mounted) {
@@ -119,69 +139,119 @@ class _DebugPageState extends State<DebugPage> {
     
     return showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (context) => Dialog(  // ← Dialog au lieu d'AlertDialog
+      builder: (context) => Dialog(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
-            mainAxisSize: MainAxisSize.min,  // ← Important !
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // Titre
-              Text(
-                'Ajouter produit\nCode: $barcode',
-                style: Theme.of(context).textTheme.titleLarge,
-                textAlign: TextAlign.center,
+              // En-tête avec icône
+              Row(
+                children: [
+                  const Icon(Icons.add_box, color: Colors.green, size: 32),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Ajouter produit', 
+                          style: Theme.of(context).textTheme.titleLarge),
+                        Text('Code: $barcode', 
+                          style: Theme.of(context).textTheme.bodySmall),
+                      ],
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 20),
               
-              // Champs
+              // Champ nom avec validation visuelle
               TextField(
                 controller: nameController,
                 decoration: const InputDecoration(
-                  labelText: 'Nom du produit',
+                  labelText: 'Nom du produit *',
                   hintText: 'Ex: Coca-Cola 33cl',
                   border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.shopping_bag),
                 ),
               ),
               const SizedBox(height: 16),
+              
+              // Champ description avec validation visuelle
               TextField(
                 controller: descriptionController,
                 decoration: const InputDecoration(
-                  labelText: 'Description (optionnel)',
-                  hintText: 'Ex: Boisson gazeuse',
+                  labelText: 'Description',
+                  hintText: 'Ex: Boisson gazeuse rafraîchissante',
                   border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.description),
+                  helperText: '✨ Optionnel mais recommandé',
                 ),
                 maxLines: 2,
               ),
               
               const SizedBox(height: 20),
               
-              // Boutons
+              // Boutons avec icônes
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  TextButton(
+                  TextButton.icon(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Annuler'),
+                    icon: const Icon(Icons.cancel),
+                    label: const Text('Annuler'),
                   ),
-                  ElevatedButton(
+                  ElevatedButton.icon(
                     onPressed: () {
-                      if (nameController.text.trim().isNotEmpty) {
-                        Navigator.of(context).pop({
+                      final name = nameController.text.trim();
+                      final description = descriptionController.text.trim();
+                      
+                      if (name.isNotEmpty) {
+                        final payload = {
                           'barcode': int.tryParse(barcode) ?? 0,
-                          'name': nameController.text.trim(),
-                          'description': descriptionController.text.trim().isEmpty 
-                              ? null 
-                              : descriptionController.text.trim(),
-                        });
+                          'name': name,
+                          'description': description.isEmpty ? null : description,
+                        };
+                        
+                        Navigator.of(context).pop(payload);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Le nom du produit est obligatoire'),
+                            backgroundColor: Colors.orange,
+                          ),
+                        );
                       }
                     },
-                    child: const Text('Ajouter'),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Ajouter'),
                   ),
                 ],
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// Dialogue de confirmation pour mise à jour
+  Future<bool?> _showUpdateConfirmDialog(String productName) async {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Produit existant'),
+        content: Text('Le produit "$productName" existe déjà. Voulez-vous le mettre à jour ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Non'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Mettre à jour'),
+          ),
+        ],
       ),
     );
   }
