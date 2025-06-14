@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:client_price_comparer/database/app_database.dart';
-import 'package:provider/provider.dart';
 // services
 import 'package:client_price_comparer/services/product_details_service.dart';
 // widgets
@@ -43,20 +42,25 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   ProductDisplayMode _currentMode = ProductDisplayMode.minimal;
   String? selectedStore; // État pour le magasin sélectionné
 
+  // ✅ AJOUTER : Cache des données en état local
+  List<StorePrice>? _cachedStorePrices;
+  Map<String, List<PricePoint>> _cachedPriceHistory = {}; // Par storeFilter
+  bool _isLoadingStorePrices = false;
+  bool _isLoadingPriceHistory = false;
+  String? _lastError;
+
   @override
   void initState() {
     super.initState();
-    _productDetailsService = ProductDetailsService(
-      widget.database,
-    );
+    _productDetailsService = ProductDetailsService(widget.database);
     _loadProduct();
+    _loadInitialData(); // ✅ Charger les données une fois
   }
 
   Future<void> _loadProduct() async {
     setState(() => _isLoading = true);
     
     try {
-      // Utiliser directement le produit passé en paramètre
       setState(() {
         _product = widget.product;
         _currentMode = widget.initialMode;
@@ -68,6 +72,102 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         _showError('Failed to load product data: $e');
       }
     }
+  }
+
+  /// ✅ NOUVEAU : Charger les données initiales une seule fois
+  Future<void> _loadInitialData() async {
+    if (_product == null) return;
+
+    try {
+      // Charger les prix magasins
+      await _loadStorePrices();
+      
+      // Charger l'historique complet (tous magasins)
+      await _loadPriceHistory(null);
+    } catch (e) {
+      _showError('Failed to load data: $e');
+    }
+  }
+
+  /// ✅ NOUVEAU : Charger les prix magasins sans reconstruction
+  Future<void> _loadStorePrices() async {
+    if (_cachedStorePrices != null) return; // Déjà chargé
+    
+    setState(() => _isLoadingStorePrices = true);
+    
+    try {
+      final storePrices = await _productDetailsService.getStorePrices(_product!.id);
+      if (mounted) {
+        setState(() {
+          _cachedStorePrices = storePrices;
+          _isLoadingStorePrices = false;
+          _lastError = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingStorePrices = false;
+          _lastError = e.toString();
+        });
+      }
+    }
+  }
+
+  /// ✅ NOUVEAU : Charger l'historique sans reconstruction
+  Future<void> _loadPriceHistory(String? storeFilter) async {
+    final key = storeFilter ?? 'all';
+    
+    // Si déjà en cache, pas besoin de recharger
+    if (_cachedPriceHistory.containsKey(key)) return;
+    
+    setState(() => _isLoadingPriceHistory = true);
+    
+    try {
+      final priceHistory = await _productDetailsService.getPriceHistory(
+        _product!.id,
+        storeFilter: storeFilter,
+      );
+      
+      if (mounted) {
+        setState(() {
+          _cachedPriceHistory[key] = priceHistory;
+          _isLoadingPriceHistory = false;
+          _lastError = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingPriceHistory = false;
+          _lastError = e.toString();
+        });
+      }
+    }
+  }
+
+  /// ✅ MODIFIER : Gestion de sélection sans reconstruction totale
+  void _onStoreSelected(String storeName) async {
+    // Toggle selection
+    final newSelection = selectedStore == storeName ? null : storeName;
+    
+    setState(() {
+      selectedStore = newSelection;
+    });
+    
+    // Charger les données pour ce magasin si pas en cache
+    if (newSelection != null) {
+      await _loadPriceHistory(newSelection);
+    }
+  }
+
+  /// ✅ NOUVEAU : Rafraîchir manuellement les données
+  Future<void> _refreshData() async {
+    // Vider les caches pour forcer le rechargement
+    _cachedStorePrices = null;
+    _cachedPriceHistory.clear();
+    
+    await _loadInitialData();
   }
 
   void _toggleMode() {
@@ -122,11 +222,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           ),
           IconButton(
             icon: const Icon(Icons.refresh_outlined),
-            onPressed: () {
-              setState(() {
-                // Force rebuild to refresh data
-              });
-            },
+            onPressed: _refreshData, // ✅ Refresh manuel
             tooltip: 'Refresh data',
           ),
         ],
@@ -143,231 +239,226 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
               ),
             )
           : _product == null
-              ? const Center(
+              ? const Center(child: Text('Product not found'))
+              : _buildMainContent(), // ✅ NOUVEAU : Content sans FutureBuilder
+    );
+  }
+
+  /// ✅ NOUVEAU : Contenu principal sans FutureBuilder
+  Widget _buildMainContent() {
+    // Vérifier si on a les données de base
+    if (_cachedStorePrices == null && _isLoadingStorePrices) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Loading store prices...'),
+          ],
+        ),
+      );
+    }
+
+    if (_lastError != null && _cachedStorePrices == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            Text('Error: $_lastError'),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _refreshData,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _refreshData,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Product Header
+            ProductHeaderWidget(
+              product: _product!,
+              fromNotification: widget.fromNotification,
+            ),
+            const SizedBox(height: 24),
+            
+            // Current Price Card
+            if (_cachedStorePrices != null) ...[
+              CurrentPriceCardWidget(
+                priceHistory: _getCurrentPriceHistory(),
+                storePrices: _cachedStorePrices!,
+              ),
+              const SizedBox(height: 24),
+            ],
+            
+            // Store Comparison avec callback optimisé
+            if (_cachedStorePrices != null) ...[
+              StoreComparisonWidget(
+                storePrices: _cachedStorePrices!,
+                selectedStore: selectedStore,
+                onStoreSelected: _onStoreSelected, // ✅ Callback optimisé
+              ),
+              const SizedBox(height: 24),
+            ],
+            
+            // Price Chart avec indicateur de chargement
+            _buildPriceChart(),
+            
+            // Section Advanced Mode
+            if (_currentMode == ProductDisplayMode.advanced) ...[
+              const SizedBox(height: 32),
+              
+              // Divider avec label
+              Row(
+                children: [
+                  const Expanded(child: Divider()),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'ADVANCED ANALYSIS',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                  const Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 24),
+              
+              // Unit Price Comparison
+              if (_cachedStorePrices != null) ...[
+                UnitPriceComparisonWidget(
+                  storePrices: _cachedStorePrices!,
+                  selectedUnit: UnitType.per100g,
+                ),
+                const SizedBox(height: 24),
+              ],
+
+              // Product Statistics
+              _buildProductStatistics(),
+              const SizedBox(height: 24),
+
+              // Product Actions
+              ProductActionButtonsWidget(
+                productId: _product!.id,
+                productDetailsService: _productDetailsService,
+                onPriceAlert: _showPriceAlertDialog,
+                onDelete: _showDeleteConfirmation,
+              ),
+              
+              const SizedBox(height: 32),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// ✅ NOUVEAU : Construire le graphique avec indicateur de chargement
+  Widget _buildPriceChart() {
+    final currentHistory = _getCurrentPriceHistory();
+    
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Header du graphique
+            Row(
+              children: [
+                Icon(Icons.timeline, color: Theme.of(context).primaryColor),
+                const SizedBox(width: 8),
+                Text(
+                  'Price History',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                if (_isLoadingPriceHistory)
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            
+            // Graphique ou placeholder
+            if (currentHistory.isNotEmpty)
+              PriceChartWidget(
+                priceHistory: currentHistory,
+                selectedStore: selectedStore,
+              )
+            else if (_isLoadingPriceHistory)
+              const SizedBox(
+                height: 200,
+                child: Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.error_outline, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text(
-                        'Product not found',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-                      ),
+                      CircularProgressIndicator(),
                       SizedBox(height: 8),
-                      Text(
-                        'This product might have been removed or is temporarily unavailable.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey),
-                      ),
+                      Text('Loading price history...'),
                     ],
                   ),
-                )
-              : FutureBuilder<List<StorePrice>>(
-                  future: _productDetailsService.getStorePrices(_product!.id),
-                  builder: (context, storePricesSnapshot) {
-                    if (storePricesSnapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircularProgressIndicator(),
-                            SizedBox(height: 16),
-                            Text('Loading store prices...'),
-                          ],
-                        ),
-                      );
-                    }
-                    
-                    if (storePricesSnapshot.hasError) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Error loading prices',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              storePricesSnapshot.error.toString(),
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: Colors.grey),
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton.icon(
-                              onPressed: () => setState(() {}),
-                              icon: const Icon(Icons.refresh),
-                              label: const Text('Retry'),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    
-                    if (!storePricesSnapshot.hasData || storePricesSnapshot.data!.isEmpty) {
-                      return const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.store_mall_directory_outlined, size: 64, color: Colors.grey),
-                            SizedBox(height: 16),
-                            Text(
-                              'No store prices available',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Price data will appear here once stores start offering this product.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return FutureBuilder<List<PricePoint>>(
-                      future: _productDetailsService.getPriceHistory(
-                        _product!.id,
-                        storeFilter: selectedStore, // Filtre par magasin sélectionné
-                      ),
-                      builder: (context, priceHistorySnapshot) {
-                        if (priceHistorySnapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                CircularProgressIndicator(),
-                                SizedBox(height: 16),
-                                Text('Loading price history...'),
-                              ],
-                            ),
-                          );
-                        }
-
-                        return RefreshIndicator(
-                          onRefresh: () async {
-                            setState(() {
-                              // Force rebuild to refresh all data
-                            });
-                          },
-                          child: SingleChildScrollView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                // Product Header avec image et infos de base
-                                ProductHeaderWidget(
-                                  product: _product!,
-                                  fromNotification: widget.fromNotification,
-                                ),
-                                const SizedBox(height: 24),
-                                
-                                // Current Price Card - prix actuel et tendance
-                                CurrentPriceCardWidget(
-                                  priceHistory: priceHistorySnapshot.data ?? [],
-                                  storePrices: storePricesSnapshot.data!,
-                                ),
-                                const SizedBox(height: 24),
-                                
-                                // Store Comparison avec interactivité
-                                StoreComparisonWidget(
-                                  storePrices: storePricesSnapshot.data!,
-                                  selectedStore: selectedStore,
-                                  onStoreSelected: (storeName) {
-                                    setState(() {
-                                      // Toggle: même magasin = désélectionner, autre = sélectionner
-                                      selectedStore = selectedStore == storeName ? null : storeName;
-                                    });
-                                  },
-                                ),
-                                const SizedBox(height: 24),
-                                
-                                // Price Chart avec filtre par magasin
-                                PriceChartWidget(
-                                  priceHistory: priceHistorySnapshot.data ?? [],
-                                  selectedStore: selectedStore, // Passe le filtre au graphique
-                                ),
-                                
-                                // Section Advanced Mode
-                                if (_currentMode == ProductDisplayMode.advanced) ...[
-                                  const SizedBox(height: 32),
-                                  
-                                  // Divider avec label
-                                  Row(
-                                    children: [
-                                      const Expanded(child: Divider()),
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                                        child: Text(
-                                          'ADVANCED ANALYSIS',
-                                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 1.2,
-                                          ),
-                                        ),
-                                      ),
-                                      const Expanded(child: Divider()),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 24),
-                                  
-                                  // Unit Price Comparison
-                                  UnitPriceComparisonWidget(
-                                    storePrices: storePricesSnapshot.data!,
-                                    selectedUnit: UnitType.per100g,
-                                  ),
-                                  const SizedBox(height: 24),
-
-                                  // Product Statistics
-                                  FutureBuilder<ProductStatistics>(
-                                    future: _productDetailsService.getProductStatistics(_product!.id),
-                                    builder: (context, statsSnapshot) {
-                                      if (statsSnapshot.connectionState == ConnectionState.waiting) {
-                                        return const Card(
-                                          child: Padding(
-                                            padding: EdgeInsets.all(24),
-                                            child: Center(
-                                              child: CircularProgressIndicator(),
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                      
-                                      if (statsSnapshot.hasData) {
-                                        return ProductStatisticsWidget(
-                                          statistics: statsSnapshot.data!,
-                                        );
-                                      }
-                                      
-                                      return const SizedBox.shrink();
-                                    },
-                                  ),
-                                  const SizedBox(height: 24),
-
-                                  // Product Actions
-                                  ProductActionButtonsWidget(
-                                    productId: _product!.id,
-                                    productDetailsService: _productDetailsService,
-                                    onPriceAlert: _showPriceAlertDialog,
-                                    onDelete: _showDeleteConfirmation,
-                                  ),
-                                  
-                                  // Extra spacing at bottom
-                                  const SizedBox(height: 32),
-                                ],
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
                 ),
+              )
+            else
+              const SizedBox(
+                height: 200,
+                child: Center(
+                  child: Text('No price history available'),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
+  }
+
+  /// ✅ NOUVEAU : Build statistics widget avec cache
+  Widget _buildProductStatistics() {
+    return FutureBuilder<ProductStatistics>(
+      future: _productDetailsService.getProductStatistics(_product!.id),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Card(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        }
+        
+        if (snapshot.hasData) {
+          return ProductStatisticsWidget(statistics: snapshot.data!);
+        }
+        
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  /// ✅ NOUVEAU : Obtenir l'historique actuel selon le filtre
+  List<PricePoint> _getCurrentPriceHistory() {
+    final key = selectedStore ?? 'all';
+    return _cachedPriceHistory[key] ?? [];
   }
 
   /// Affiche le dialog pour définir une alerte de prix

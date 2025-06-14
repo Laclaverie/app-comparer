@@ -12,69 +12,127 @@ import 'package:shared_models/models/price/price_promotion.dart';
 import 'package:shared_models/models/promotion/promotion_type.dart';
 import 'package:shared_models/models/product/product_statistics.dart';
 
+import 'cache_manager.dart';
+
 /// Provides comprehensive product information and analysis services
 /// Handles price history, store comparisons, statistics, and user actions like favorites
 /// Integrates with database operations and promotion calculations
 class ProductDetailsService {
   final AppDatabase _database;
-  late final DatabaseWrapper _dbWrapper; // ← Nouveau wrapper
+  late final DatabaseWrapper _dbWrapper;
+  late final CacheManager _cacheManager;
   final String _serverBaseUrl = 'http://192.168.18.5:8080';
   final Logger _logger = Logger('ProductDetailsService');
 
   ProductDetailsService(this._database) {
-    _dbWrapper = DatabaseWrapper(_database); // ← Initialiser
+    _dbWrapper = DatabaseWrapper(_database);
+    _cacheManager = CacheManager(_dbWrapper);
+    
+    // Nettoyer la DB au démarrage (async, non-bloquant)
+    _initCleanup();
   }
 
-  /// Get price history for a product (version réelle)
+  void _initCleanup() {
+    Future.microtask(() async {
+      try {
+        await _cacheManager.cleanupDatabase();
+      } catch (e) {
+        _logger.warning('Initial cleanup failed: $e');
+      }
+    });
+  }
+
+  /// Get price history avec cache intelligent
   Future<List<PricePoint>> getPriceHistory(int productId, {String? storeFilter}) async {
-    _logger.info('Getting price history for product $productId');
-    
+    return await _cacheManager.getCachedPriceHistory(
+      productId,
+      storeFilter,
+      () => _fetchPriceHistoryWithFallback(productId, storeFilter: storeFilter),
+    );
+  }
+
+  /// Get store prices avec cache
+  Future<List<StorePrice>> getStorePrices(int productId) async {
+    return await _cacheManager.getCachedStorePrices(
+      productId,
+      () => _fetchStorePricesWithFallback(productId),
+    );
+  }
+
+  /// Fetch avec fallback (local → serveur → mock)
+  Future<List<PricePoint>> _fetchPriceHistoryWithFallback(int productId, {String? storeFilter}) async {
     // 1. Chercher en local d'abord
     List<PricePoint> localHistory = await _getLocalPriceHistory(productId, storeFilter: storeFilter);
-    _logger.info('Found ${localHistory.length} local price points');
     
-    // 2. Chercher sur le serveur des données plus récentes
-    try {
-      final serverHistory = await _getServerPriceHistory(productId, storeFilter: storeFilter);
-      if (serverHistory.isNotEmpty) {
-        _logger.info('Found ${serverHistory.length} server price points');
-        
-        // 3. Fusionner et mettre à jour si nécessaire
-        final updatedHistory = await _mergeAndUpdatePriceHistory(productId, localHistory, serverHistory);
-        return updatedHistory;
+    // 2. Si pas assez de données récentes, chercher sur le serveur
+    final needsServerData = _needsServerUpdate(localHistory);
+    
+    if (needsServerData) {
+      try {
+        final serverHistory = await _getServerPriceHistory(productId, storeFilter: storeFilter);
+        if (serverHistory.isNotEmpty) {
+          // 3. Fusionner et sauvegarder
+          final updatedHistory = await _mergeAndUpdatePriceHistory(productId, localHistory, serverHistory);
+          return updatedHistory;
+        }
+      } catch (e) {
+        _logger.warning('Server fetch failed, using local: $e');
       }
-    } catch (e) {
-      _logger.warning('Server price history failed, using local data: $e');
     }
     
-    // 4. Retourner les données locales si le serveur échoue
+    // 4. Retourner local ou mock
     return localHistory.isNotEmpty ? localHistory : _getMockPriceHistory();
   }
 
-  /// Flux principal : local d'abord, puis serveur - SEULEMENT LES PRIX D'AUJOURD'HUI
-  Future<List<StorePrice>> getStorePrices(int productId) async {
-    _logger.info('Getting current store prices for product $productId');
-    
-    // 1. Chercher les prix d'aujourd'hui en local
+  /// Fetch store prices avec fallback
+  Future<List<StorePrice>> _fetchStorePricesWithFallback(int productId) async {
     List<StorePrice> localPrices = await _getCurrentLocalStorePrices(productId);
-    _logger.info('Found ${localPrices.length} current local prices');
     
-    // 2. Chercher sur le serveur des prix plus récents
-    try {
-      final serverPrices = await _getCurrentServerStorePrices(productId);
-      if (serverPrices.isNotEmpty) {
-        _logger.info('Found ${serverPrices.length} current server prices');
-        
-        // 3. Fusionner et mettre à jour
-        final updatedPrices = await _mergeAndUpdatePrices(productId, localPrices, serverPrices);
-        return updatedPrices;
+    final needsUpdate = _needsStorePricesUpdate(localPrices);
+    
+    if (needsUpdate) {
+      try {
+        final serverPrices = await _getCurrentServerStorePrices(productId);
+        if (serverPrices.isNotEmpty) {
+          final updatedPrices = await _mergeAndUpdatePrices(productId, localPrices, serverPrices);
+          return updatedPrices;
+        }
+      } catch (e) {
+        _logger.warning('Server prices failed: $e');
       }
-    } catch (e) {
-      _logger.warning('Server prices failed, using local data: $e');
     }
     
-    // 4. Retourner les données locales ou mock
     return localPrices.isNotEmpty ? localPrices : _getMockStorePrices();
+  }
+
+  /// Vérifier si on a besoin de données serveur
+  bool _needsServerUpdate(List<PricePoint> localHistory) {
+    if (localHistory.isEmpty) return true;
+    
+    final latestLocal = localHistory.last.date;
+    final hoursSinceUpdate = DateTime.now().difference(latestLocal).inHours;
+    
+    // Mettre à jour si > 2 heures ou < 10 points
+    return hoursSinceUpdate > 2 || localHistory.length < 10;
+  }
+
+  /// Vérifier si les prix magasins ont besoin d'update
+  bool _needsStorePricesUpdate(List<StorePrice> localPrices) {
+    if (localPrices.isEmpty) return true;
+    
+    final oldestUpdate = localPrices
+        .map((p) => p.lastUpdated)
+        .reduce((a, b) => a.isBefore(b) ? a : b);
+    
+    final minutesSinceUpdate = DateTime.now().difference(oldestUpdate).inMinutes;
+    
+    // Mettre à jour si > 15 minutes
+    return minutesSinceUpdate > 15;
+  }
+
+  /// Nettoyer le cache (à appeler périodiquement)
+  Future<void> clearCache() async {
+    _cacheManager.clearMemoryCache();
   }
 
   /// Récupérer l'historique depuis la base locale - AVEC WRAPPER

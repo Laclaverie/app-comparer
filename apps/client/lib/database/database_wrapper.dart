@@ -169,6 +169,85 @@ class DatabaseWrapper {
       // Log l'erreur mais ne pas faire échouer l'app
     }
   }
+
+  /// Supprimer l'historique des prix avant une date donnée
+  Future<void> deletePriceHistoryBefore(DateTime cutoffDate) async {
+    try {
+      await (_database.delete(_database.priceHistory)
+        ..where((tbl) => tbl.date.isSmallerThanValue(cutoffDate)))
+        .go();
+    } catch (e) {
+      throw Exception('Failed to delete old price history: $e');
+    }
+  }
+
+  /// Compter le nombre total d'entrées dans l'historique
+  Future<int> countPriceHistoryEntries() async {
+    try {
+      final count = await _database.select(_database.priceHistory).get();
+      return count.length;
+    } catch (e) {
+      throw Exception('Failed to count price history entries: $e');
+    }
+  }
+
+  /// Garder seulement les N entrées les plus récentes
+  Future<void> keepOnlyRecentEntries(int maxEntries) async {
+    try {
+      // Récupérer les IDs des entrées les plus anciennes
+      final oldEntries = await (_database.select(_database.priceHistory)
+        ..orderBy([
+          (tbl) => OrderingTerm.desc(tbl.date),
+        ])
+        ..limit(maxEntries, offset: maxEntries))
+        .get();
+
+      if (oldEntries.isNotEmpty) {
+        final idsToDelete = oldEntries.map((e) => e.id).toList();
+        await (_database.delete(_database.priceHistory)
+          ..where((tbl) => tbl.id.isNotIn(idsToDelete)))
+          .go();
+      }
+    } catch (e) {
+      throw Exception('Failed to keep recent entries: $e');
+    }
+  }
+
+  /// Obtenir la taille approximative de la base de données
+  Future<Map<String, int>> getDatabaseStats() async {
+    try {
+      final priceHistoryCount = await _database.select(_database.priceHistory).get();
+      final supermarketsCount = await _database.select(_database.supermarkets).get();
+      final productsCount = await _database.select(_database.products).get();
+      
+      return {
+        'priceHistory': priceHistoryCount.length,
+        'supermarkets': supermarketsCount.length,
+        'products': productsCount.length,
+      };
+    } catch (e) {
+      throw Exception('Failed to get database stats: $e');
+    }
+  }
+
+  /// Nettoyage intelligent : supprimer les doublons
+  Future<void> removeDuplicatePrices() async {
+    try {
+      // Identifier les doublons (même produit, magasin, prix et date proche)
+      final query = '''
+        DELETE FROM price_history 
+        WHERE id NOT IN (
+          SELECT MIN(id) 
+          FROM price_history 
+          GROUP BY product_id, supermarket_id, price, DATE(date)
+        )
+      ''';
+      
+      await _database.customStatement(query);
+    } catch (e) {
+      throw Exception('Failed to remove duplicate prices: $e');
+    }
+  }
 }
 
 /// Classe helper pour retourner prix + magasin
