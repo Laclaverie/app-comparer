@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart';
 
 /// Table des produits avec cache intelligent
-@DataClassName('Product')
 class Products extends Table {
   IntColumn get id => integer().autoIncrement()();
   
@@ -30,7 +29,6 @@ class Products extends Table {
 }
 
 /// Table des marques
-@DataClassName('Brand')
 class Brands extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text().withLength(min: 1, max: 100)();
@@ -41,7 +39,6 @@ class Brands extends Table {
 }
 
 /// Table des catégories  
-@DataClassName('Category')
 class Categories extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text().withLength(min: 1, max: 100)();
@@ -53,7 +50,6 @@ class Categories extends Table {
 }
 
 /// Table des supermarchés
-@DataClassName('Supermarket')
 class Supermarkets extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text().withLength(min: 1, max: 100)();
@@ -66,7 +62,6 @@ class Supermarkets extends Table {
 }
 
 /// Table de l'historique des prix
-@DataClassName('PriceHistoryData')
 class PriceHistory extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get productId => integer().references(Products, #id)();
@@ -86,7 +81,6 @@ class PriceHistory extends Table {
 }
 
 /// Table des utilisateurs
-@DataClassName('User')
 class Users extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get email => text().unique()();

@@ -31,8 +31,8 @@ scripts:
     description: Clean all Flutter projects
 
   get:
-    run: |
-      melos exec -- "flutter pub get"
+    steps:
+      - melos exec -- "flutter pub get"
     description: Get dependencies for all packages
 
   build:runner:

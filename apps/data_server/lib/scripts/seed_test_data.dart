@@ -111,30 +111,35 @@ class TestDataSeeder {
     final testStores = [
       SupermarketsCompanion(
         name: const Value('Carrefour'),
-        location: const Value('123 Rue de la République, Centre Commercial'),
+        address: const Value('123 Rue de la République'),
+        city: const Value('Centre Commercial'),
       ),
       SupermarketsCompanion(
         name: const Value('Leclerc'),
-        location: const Value('456 Avenue des Champs, Zone Commerciale Nord'),
+        address: const Value('456 Avenue des Champs'),
+        city: const Value('Zone Commerciale Nord'),
       ),
       SupermarketsCompanion(
         name: const Value('Monoprix'),
-        location: const Value('789 Place du Marché, Centre Ville'),
+        address: const Value('789 Place du Marché'),
+        city: const Value('Centre Ville'),
       ),
       SupermarketsCompanion(
         name: const Value('Super U'),
-        location: const Value('321 Boulevard de la Gare, Quartier Sud'),
+        address: const Value('321 Boulevard de la Gare'),
+        city: const Value('Quartier Sud'),
       ),
       SupermarketsCompanion(
         name: const Value('IGA'),
-        location: const Value('654 Rue des Entreprises, Zone Industrielle'),
+        address: const Value('654 Rue des Entreprises'),
+        city: const Value('Zone Industrielle'),
       ),
     ];
 
     for (final store in testStores) {
       try {
         await database.into(database.supermarkets).insert(store);
-        print('✅ Magasin ajouté: ${store.name.value} - ${store.location.value}');
+        print('✅ Magasin ajouté: ${store.name.value} - ${store.address.value}, ${store.city.value}');
       } catch (e) {
         print('⚠️  Magasin existe déjà: ${store.name.value}');
       }

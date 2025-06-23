@@ -5,7 +5,6 @@ import 'package:client_price_comparer/camera/barcode_scanner_widget.dart';
 import 'package:client_price_comparer/database/app_database.dart';
 import 'package:client_price_comparer/services/product_service.dart';
 import 'package:client_price_comparer/pages/product_details_page.dart';
-import 'package:shared_models/models/price/price_models.dart';
 import 'package:shared_models/models/product/productdto.dart';
 
 class ScanProductPage extends StatefulWidget {

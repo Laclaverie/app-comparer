@@ -1,72 +1,45 @@
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'dart:io';
+import 'database/tables/tables.dart';
 
 part 'data_database.g.dart';
-// TODO > improve because it's a copy of the shared_models package
-class Products extends Table {
-  IntColumn get id => integer().autoIncrement()();
-  IntColumn get barcode => integer().unique()();
-  TextColumn get name => text()();
-  IntColumn get brandId => integer().nullable().references(Brands, #id)();
-  IntColumn get categoryId => integer().nullable().references(Categories, #id)();
-  TextColumn get imageFileName => text().nullable()();  // ← Nom du fichier, pas URL
-  TextColumn get imagePath => text().nullable()();      // ← Chemin local sur serveur
-  TextColumn get description => text().nullable()();
-}
-
-class Brands extends Table {
-  IntColumn get id => integer().autoIncrement()();
-  TextColumn get name => text().unique()();
-}
-
-class Categories extends Table {
-  IntColumn get id => integer().autoIncrement()();
-  TextColumn get name => text()();
-  IntColumn get parentCategoryId => integer().nullable().references(Categories, #id)();
-}
-
-class Supermarkets extends Table {
-  IntColumn get id => integer().autoIncrement()();
-  TextColumn get name => text()();
-  TextColumn get location => text().nullable()();
-}
-
-class PriceHistory extends Table {
-  IntColumn get id => integer().autoIncrement()();
-  IntColumn get productId => integer().references(Products, #id)();
-  IntColumn get supermarketId => integer().references(Supermarkets, #id)();
-  RealColumn get price => real()();
-  DateTimeColumn get date => dateTime()();
-  IntColumn get userId => integer().nullable().references(Users, #id)();
-  BoolColumn get isPromotion => boolean().withDefault(const Constant(false))();
-  TextColumn get promotionDescription => text().nullable()();
-}
-
-class Users extends Table {
-  IntColumn get id => integer().autoIncrement()();
-  TextColumn get name => text()();
-  TextColumn get email => text().nullable()();
-}
-
 
 @DriftDatabase(
-  tables: [Products, Brands, Categories, Supermarkets, PriceHistory, Users],
+  tables: [
+    Products,
+    Brands,
+    Categories,
+    Supermarkets,
+    PriceHistory,
+    Users,
+  ],
 )
 class DataDatabase extends _$DataDatabase {
-  // Constructeur pour la production
   DataDatabase() : super(_openConnection('database.db'));
-  
-  // Constructeur pour les tests
   DataDatabase.forTesting() : super(_openConnection(':memory:'));
-  
-  // Constructeur pour le développement avec fichier persistant
   DataDatabase.development() : super(_openConnection('dev_database.db'));
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
-  // Méthode statique pour créer la connexion
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (Migrator m) async {
+      await m.createAll();
+    },
+    onUpgrade: (Migrator m, int from, int to) async {
+      if (from < 2) {
+        try {
+          await m.addColumn(priceHistory, priceHistory.originalPrice);
+          print('✅ Added originalPrice column');
+        } catch (e) {
+          print('Column originalPrice already exists: $e');
+        }
+      }
+    },
+  );
+
   static QueryExecutor _openConnection(String path) {
     if (path == ':memory:') {
       return NativeDatabase.memory();
@@ -74,27 +47,32 @@ class DataDatabase extends _$DataDatabase {
     return NativeDatabase.createInBackground(File(path));
   }
 
-  // ✅ Supprimez la méthode openConnection() - plus besoin
-
-  // ✅ Méthodes existantes
+  // ✅ PRODUCTS - CRUD de base uniquement
   Future<List<Product>> getAllProducts() async {
     return await select(products).get();
   }
 
   Future<Product?> getProductByBarcode(int barcode) async {
-    return await (select(products)
-          ..where((p) => p.barcode.equals(barcode)))
-        .getSingleOrNull();
+    try {
+      print('🔍 DB DEBUG: Searching for barcode: $barcode');
+      
+      // ✅ SYNTAXE ALTERNATIVE : Chaînage simple
+      final query = select(products)
+          ..where((p) => p.barcode.equals(barcode));
+      
+      final result = await query.getSingleOrNull();
+      
+      print('🔍 DB DEBUG: Found product: ${result?.name ?? 'NULL'}');
+      return result;
+    } catch (e, stackTrace) {
+      print('❌ DB ERROR: $e');
+      print('❌ Stack trace: $stackTrace');
+      rethrow;
+    }
   }
 
   Future<int> insertProduct(ProductsCompanion product) async {
     return await into(products).insert(product);
-  }
-
-  Future<Product?> getProductById(int id) async {
-    return await (select(products)
-          ..where((p) => p.id.equals(id)))
-        .getSingleOrNull();
   }
 
   Future<bool> updateProduct(ProductsCompanion product) async {
@@ -136,4 +114,68 @@ class DataDatabase extends _$DataDatabase {
     return await select(users).get();
   }
 
+  Future<void> fixProductsData() async {
+    try {
+      print('🔧 Fixing products data...');
+      
+      // Corriger les colonnes NULL avec les valeurs par défaut
+      final updatedRows = await customUpdate(
+        '''
+        UPDATE products 
+        SET 
+          is_active = COALESCE(is_active, 1),
+          created_at = COALESCE(created_at, datetime('now')),
+          updated_at = COALESCE(updated_at, datetime('now'))
+        WHERE 
+          is_active IS NULL 
+          OR created_at IS NULL
+        ''',
+      );
+      
+      print('✅ Fixed $updatedRows products with NULL values');
+      
+      // Vérification
+      final nullCount = await customSelect(
+        '''
+        SELECT COUNT(*) as count 
+        FROM products 
+        WHERE is_active IS NULL OR created_at IS NULL
+        '''
+      ).getSingle();
+      
+      print('🔍 Products with NULL values remaining: ${nullCount.data['count']}');
+      
+    } catch (e) {
+      print('❌ Error fixing products data: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> debugTableSchema() async {
+  try {
+    print('🔍 Current products table schema:');
+    final schema = await customSelect('PRAGMA table_info(products)').get();
+    
+    print('📋 Existing columns:');
+    for (final row in schema) {
+      final data = row.data;
+      print('  - ${data['name']} (${data['type']}) nullable:${data['notnull'] == 0}');
+    }
+    
+    // Vérifier si les colonnes manquantes existent
+    final columnNames = schema.map((row) => row.data['name'] as String).toList();
+    
+    final expectedColumns = ['is_active', 'created_at', 'updated_at'];
+    for (final col in expectedColumns) {
+      if (!columnNames.contains(col)) {
+        print('❌ Missing column: $col');
+      } else {
+        print('✅ Found column: $col');
+      }
+    }
+    
+  } catch (e) {
+    print('❌ Schema debug error: $e');
+  }
+}
 }

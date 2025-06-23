@@ -26,15 +26,17 @@ RouterWithLogging createRouterWithLogging(ProductHandlers productHandlers, Image
   routerWrapper.addRoute('GET', '/', _rootHandler, 'API Info');
   routerWrapper.addRoute('GET', '/health', _healthHandler, 'Health Check');
   
-  // Products routes
+  // Products routes - UNIQUEMENT PAR BARCODE
   routerWrapper.addRoute('GET', '/api/products', productHandlers.getAllProducts, 'List all products');
-  routerWrapper.addRoute('GET', '/api/products/barcode/<barcode>', productHandlers.getProductByBarcode, 'Get product by barcode');
-  routerWrapper.addRoute('GET', '/api/products/search', productHandlers.searchProducts, 'Search products');
-  routerWrapper.addRoute('GET', '/api/products/<id>/prices', productHandlers.getProductPrices, 'Get product prices');
+ // routerWrapper.addRoute('GET', '/api/products/search', productHandlers.searchProducts, 'Search products');
   routerWrapper.addRoute('POST', '/api/products', productHandlers.createProduct, 'Create product');
-  routerWrapper.addRoute('PUT', '/api/products/<id>', productHandlers.updateProduct, 'Update product');
-  routerWrapper.addRoute('DELETE', '/api/products/<id>', productHandlers.deleteProduct, 'Delete product');
-  routerWrapper.addRoute('GET', '/api/products/<id>/price-history', productHandlers.getProductPriceHistory, 'Get product price history');
+  
+  // ✅ TOUT PAR BARCODE maintenant
+  routerWrapper.addRoute('GET', '/api/products/barcode/<barcode>', productHandlers.getProductByBarcode, 'Get product by barcode');
+  routerWrapper.addRoute('PUT', '/api/products/barcode/<barcode>', productHandlers.updateProductByBarcode, 'Update product by barcode');
+  routerWrapper.addRoute('DELETE', '/api/products/barcode/<barcode>', productHandlers.deleteProductByBarcode, 'Delete product by barcode');
+  routerWrapper.addRoute('GET', '/api/products/barcode/<barcode>/current-prices', productHandlers.getCurrentPricesByBarcode, 'Get current prices by barcode');
+  routerWrapper.addRoute('GET', '/api/products/barcode/<barcode>/price-history', productHandlers.getPriceHistoryByBarcode, 'Get price history by barcode');
   
   // Images routes
   routerWrapper.addRoute('POST', '/api/images/upload', imageHandlers.uploadImage, 'Upload image');
@@ -49,12 +51,14 @@ RouterWithLogging createRouterWithLogging(ProductHandlers productHandlers, Image
 
 void printRoutes(List<(String, String, String)> routes, String ip, int port) {
   print('\n📋 Available endpoints (${routes.length} total):');
+  print('🚫 Note: This API works ONLY with barcodes, no ID-based routes');
   
   // Grouper par catégorie
   final grouped = <String, List<(String, String, String)>>{};
   
   for (final (method, path, description) in routes) {
-    final category = path.startsWith('/api/products') ? '📦 Products' :
+    final category = path.startsWith('/api/products/barcode') ? '📱 Products (Barcode)' :
+                    path.startsWith('/api/products') ? '📦 Products (General)' :
                     path.startsWith('/api/images') ? '🖼️  Images' :
                     path.startsWith('/api/admin') ? '🔧 Admin' : '🏠 Core';
     grouped.putIfAbsent(category, () => []).add((method, path, description));
@@ -73,6 +77,7 @@ void printRoutes(List<(String, String, String)> routes, String ip, int port) {
   }
   
   print('\n📱 Base URL for your app: http://$ip:$port');
+  print('📦 All product operations use barcode instead of ID');
 }
 
 Response _rootHandler(Request req) => Response.ok('Data Server API v1.0');

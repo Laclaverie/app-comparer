@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:data_server/services/image_service.dart';
 import 'package:test/test.dart';
 import 'package:shelf/shelf_io.dart';
 import 'package:shelf_router/shelf_router.dart';
 import 'package:shared_models/models/product/productdto.dart';
+
+import '../../lib/services/image_service.dart';
+import '../../lib/repositories/product_repository.dart' show ProductRepository;
 import '../../lib/data_database.dart';
 import '../../lib/services/product_service.dart';
 import '../../lib/handlers/product_handlers.dart';
@@ -13,6 +15,8 @@ void main() {
   group('API Integration Tests', () {
     late HttpServer server;
     late DataDatabase database;
+    late ProductRepository productRepository;
+
     late String baseUrl;
     late ImageService imageService;
 
@@ -20,15 +24,16 @@ void main() {
       // Setup database
       database = DataDatabase.forTesting();
       imageService = ImageService();
-      final productService = ProductService(database,imageService);
-      final productHandlers = ProductHandlers(productService,imageService);
+      productRepository = ProductRepository(database);
+      final productService = ProductService(productRepository, imageService);
+      final productHandlers = ProductHandlers(productService, imageService);
 
       // Setup router
       final router = Router()
         ..get('/api/products', productHandlers.getAllProducts)
         ..get('/api/products/barcode/<barcode>', productHandlers.getProductByBarcode)
-        ..post('/api/products', productHandlers.createProduct)
-        ..get('/api/products/search', productHandlers.searchProducts);
+        ..post('/api/products', productHandlers.createProduct);
+    //    ..get('/api/products/search', productHandlers.searchProducts); // nethode non secure, a refaire
 
       // Start server
       server = await serve(router, InternetAddress.loopbackIPv4, 0);
@@ -71,7 +76,9 @@ void main() {
       expect(allProducts['products'].length, equals(1));
       expect(allProducts['count'], equals(1));
     });
-
+  });
+}
+/*
     test('should search products via HTTP', () async {
       // Arrange - Create test products
       await _createProductViaHttp(baseUrl, ProductDto(
@@ -97,8 +104,8 @@ void main() {
       expect(searchResults['products'][0]['name'], contains('Apple'));
     });
   });
-}
-
+}*/
+/*
 Future<ProductDto> _createProductViaHttp(String baseUrl, ProductDto product) async {
   final request = await HttpClient().postUrl(Uri.parse('$baseUrl/api/products'))
     ..headers.contentType = ContentType.json
@@ -106,4 +113,4 @@ Future<ProductDto> _createProductViaHttp(String baseUrl, ProductDto product) asy
   final response = await request.close();
   final body = await response.transform(utf8.decoder).join();
   return ProductDto.fromJson(json.decode(body));
-}
+}*/

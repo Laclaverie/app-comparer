@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:data_server/repositories/product_repository.dart' show ProductRepository;
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart';
 
@@ -7,14 +8,15 @@ import 'package:data_server/services/product_service.dart';
 import 'package:data_server/services/image_service.dart';
 import 'package:data_server/handlers/product_handlers.dart';
 import 'package:data_server/handlers/image_handlers.dart';
-import 'package:data_server/helpers/routes.dart';  // ← Import du helper
+import 'package:data_server/helpers/routes.dart';
 
 void main() async {
   // Initialiser les services
   final database = DataDatabase.development();
   final imageService = ImageService();
-  final productService = ProductService(database, imageService);
-  
+  final productRepository = ProductRepository(database);
+  final productService = ProductService(productRepository, imageService);
+
   // Initialiser les handlers
   final productHandlers = ProductHandlers(productService, imageService);
   final imageHandlers = ImageHandlers(imageService);

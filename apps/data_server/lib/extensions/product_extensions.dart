@@ -43,7 +43,6 @@ extension ProductDtoToCompanion on ProductDto {
       brandId: brandId != null ? Value(brandId!) : const Value.absent(),
       categoryId: categoryId != null ? Value(categoryId!) : const Value.absent(),
       imageFileName: imageFileName != null ? Value(imageFileName!) : const Value.absent(),
-      imagePath: const Value.absent(), // Géré par le serveur
       description: description != null ? Value(description!) : const Value.absent(),
     );
   }

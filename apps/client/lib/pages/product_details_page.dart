@@ -1,5 +1,3 @@
-import 'dart:async' show TimeoutException;
-
 import 'package:flutter/material.dart';
 import 'package:client_price_comparer/database/app_database.dart';
 import 'package:client_price_comparer/services/product_details_service.dart';
@@ -32,7 +30,7 @@ class ProductDetailsPage extends StatefulWidget {
 }
 
 class _ProductDetailsPageState extends State<ProductDetailsPage> {
-  bool _isLoading = false;
+  final bool _isLoading = false;
   
   late ProductDetailsService _productDetailsService;
   ProductDto? _product;
@@ -45,7 +43,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   List<StorePrice>? _cachedStorePrices;
   final Map<String, List<PricePoint>> _cachedPriceHistory = {};
   bool _isLoadingStorePrices = false;
-  bool _isLoadingPriceHistory = false;
+  final bool _isLoadingPriceHistory = false;
   String? _lastError;
 
   @override
@@ -129,7 +127,37 @@ Future<void> _loadStorePrices() async {
   debugPrint('🏪 [STORES] Mode développement - simulation directe des prix magasins');
   
   // ✅ TEMPORAIRE : Simuler directement pour éviter le freeze du service
-  await _simulateStorePrices();
+ // await _simulateStorePrices();
+ try {
+ final storePrices = await _productDetailsService.getStorePrices(_product!.barcode)
+ .timeout(const Duration(seconds: 5), onTimeout: () {
+    debugPrint('⚠️ [STORES] Timeout lors du chargement des prix magasins');
+    setState(() => _isLoadingStorePrices = false);
+    return <StorePrice>[];
+  });
+  
+  if (storePrices.isEmpty) {
+    debugPrint('⚠️ [STORES] Aucun prix magasin trouvé pour le produit ${_product!.id}');
+    setState(() => _isLoadingStorePrices = false);
+    return;
+  }
+  
+  setState(() {
+    _cachedStorePrices = storePrices;
+    _isLoadingStorePrices = false;
+  });
+  
+  debugPrint('✅ [STORES] Prix magasins chargés avec succès (${_cachedStorePrices!.length} magasins)');
+} catch (e) {
+    debugPrint('❌ [STORES] Erreur chargement prix magasins: $e');
+    setState(() {
+      _isLoadingStorePrices = false;
+      _lastError = 'Erreur chargement prix magasins: $e';
+    });
+    if (mounted) {
+      _showError(_lastError!);
+    }
+  }
 }
 
 /// ✅ CORRECTION COMPLÈTE : Simuler des prix magasins avec promotions
@@ -688,7 +716,7 @@ Future<void> _simulateStorePrices() async {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).primaryColor.withOpacity(0.1),
+                              color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
@@ -718,17 +746,17 @@ Future<void> _simulateStorePrices() async {
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: isLowestPrice 
-                                  ? Colors.green.withOpacity(0.05)
+                                  ? Colors.green.withValues(alpha: 0.05)
                                   : storePrice.isCurrentStore
-                                      ? Theme.of(context).primaryColor.withOpacity(0.05)
+                                      ? Theme.of(context).primaryColor.withValues(alpha: 0.05)
                                       : null,
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
                                 color: isLowestPrice 
-                                    ? Colors.green.withOpacity(0.3)
+                                    ? Colors.green.withValues(alpha: 0.3)
                                     : storePrice.isCurrentStore
-                                        ? Theme.of(context).primaryColor.withOpacity(0.3)
-                                        : Colors.grey.withOpacity(0.2),
+                                        ? Theme.of(context).primaryColor.withValues(alpha: 0.3)
+                                        : Colors.grey.withValues(alpha: 0.2),
                               ),
                             ),
                             child: Row(
@@ -739,10 +767,10 @@ Future<void> _simulateStorePrices() async {
                                   height: 40,
                                   decoration: BoxDecoration(
                                     color: isLowestPrice 
-                                        ? Colors.green.withOpacity(0.1)
+                                        ? Colors.green.withValues(alpha: 0.1)
                                         : storePrice.isCurrentStore
-                                            ? Theme.of(context).primaryColor.withOpacity(0.1)
-                                            : Colors.grey.withOpacity(0.1),
+                                            ? Theme.of(context).primaryColor.withValues(alpha: 0.1)
+                                            : Colors.grey.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Icon(
@@ -825,7 +853,7 @@ Future<void> _simulateStorePrices() async {
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                                               decoration: BoxDecoration(
-                                                color: Colors.orange.withOpacity(0.1),
+                                                color: Colors.orange.withValues(alpha: 0.1),
                                                 borderRadius: BorderRadius.circular(4),
                                               ),
                                               child: Text(
@@ -883,7 +911,7 @@ Future<void> _simulateStorePrices() async {
                               ],
                             ),
                           ));
-                        }).toList(),
+                        }),
                     ],
                   ),
                 ),

@@ -127,7 +127,7 @@ class TestService {
     ));
     
     // Insérer un historique de prix
-    final priceHistoryId = await database.insertPriceHistory(PriceHistoryCompanion.insert(
+    final priceHistoryId = await database.insertPriceHistory(PriceHistoryTableCompanion.insert(
       productId: productId,
       supermarketId: supermarketId,
       price: 2.99,

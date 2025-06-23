@@ -137,7 +137,7 @@ class DataServerClient {
     });
   }
 
-  Future<List<ProductDto>> searchProducts(String query) async {
+  /*Future<List<ProductDto>> searchProducts(String query) async {
     return await _retry(() async {
       final response = await http.get(
         Uri.parse('$baseUrl/api/products/search?q=${Uri.encodeComponent(query)}'),
@@ -152,7 +152,7 @@ class DataServerClient {
       }
       throw HttpException('Failed to search products: ${response.statusCode}');
     });
-  }
+  }*/
 
   Future<Map<String, dynamic>> getAllProductsAdmin(String adminToken) async {
     return await _retry(() async {

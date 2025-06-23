@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:shared_models/models/product/productdto.dart';
+import 'package:shared_models/models/store/store_price.dart' show StorePrice;
 import 'app_database.dart';
 import 'mappers/product_mapper.dart';
 
@@ -13,24 +14,41 @@ class DatabaseWrapper {
   // MÉTHODES PRIX AVEC MAGASINS
   // ===========================================
 
-  /// Récupérer le prix le plus récent par magasin pour un produit
-  Future<List<PriceHistoryWithStore>> getLatestPricesByStore(int productId) async {
+  /// Récupérer le prix le plus récent par magasin pour un produit (par code-barres)
+  Future<List<PriceHistoryWithStore>> getLatestPricesByStore(int barcode) async {
     try {
-      final allPrices = await (_database.select(_database.priceHistory).join([
+      // ✅ ÉTAPE 1 : Récupérer le produit par code-barres
+      final product = await (_database.select(_database.products)
+        ..where((tbl) => tbl.barcode.equals(barcode)))
+        .getSingleOrNull(); // ✅ CORRECTION : Parenthèse manquante ajoutée
+    
+      if (product == null) {
+        debugPrint('⚠️ [DB] Aucun produit trouvé pour le code-barres: $barcode');
+        return [];
+      }
+      
+      debugPrint('✅ [DB] Produit trouvé: ${product.name} (ID: ${product.id})');
+      
+      // ✅ ÉTAPE 2 : Récupérer les prix avec magasins pour ce produit
+      final allPrices = await (_database.select(_database.priceHistoryTable).join([
         leftOuterJoin(
           _database.supermarkets,
-          _database.supermarkets.id.equalsExp(_database.priceHistory.supermarketId),
+          _database.supermarkets.id.equalsExp(_database.priceHistoryTable.supermarketId),
         ),
-      ])..where(_database.priceHistory.productId.equals(productId))
-       ..orderBy([OrderingTerm.desc(_database.priceHistory.date)]))
+      ])..where(_database.priceHistoryTable.productId.equals(product.id))
+       ..orderBy([OrderingTerm.desc(_database.priceHistoryTable.date)]))
       .get();
+      
+      debugPrint('ℹ️ [DB] ${allPrices.length} entrées de prix trouvées');
 
+      // ✅ ÉTAPE 3 : Grouper par magasin (garder le plus récent pour chaque magasin)
       final Map<int, PriceHistoryWithStore> latestByStore = {};
       
       for (final row in allPrices) {
-        final priceData = row.readTable(_database.priceHistory);
+        final priceData = row.readTable(_database.priceHistoryTable);
         final storeData = row.readTableOrNull(_database.supermarkets);
         
+        // Garder seulement le prix le plus récent par magasin
         if (!latestByStore.containsKey(priceData.supermarketId)) {
           latestByStore[priceData.supermarketId] = PriceHistoryWithStore(
             priceHistory: priceData,
@@ -39,9 +57,11 @@ class DatabaseWrapper {
         }
       }
       
+      debugPrint('✅ [DB] ${latestByStore.length} prix uniques par magasin pour le code-barres $barcode');
       return latestByStore.values.toList();
     } catch (e) {
-      throw Exception('Failed to get latest prices by store: $e');
+      debugPrint('❌ [DB] Erreur récupération prix par code-barres: $e');
+      throw Exception('Failed to get latest prices by barcode: $e');
     }
   }
 
@@ -52,12 +72,12 @@ class DatabaseWrapper {
     int? limitDays,
   }) async {
     try {
-      var query = _database.select(_database.priceHistory).join([
+      var query = _database.select(_database.priceHistoryTable).join([
         leftOuterJoin(
           _database.supermarkets,
-          _database.supermarkets.id.equalsExp(_database.priceHistory.supermarketId),
+          _database.supermarkets.id.equalsExp(_database.priceHistoryTable.supermarketId),
         ),
-      ])..where(_database.priceHistory.productId.equals(productId));
+      ])..where(_database.priceHistoryTable.productId.equals(productId));
 
       if (storeFilter != null) {
         query = query..where(_database.supermarkets.name.equals(storeFilter));
@@ -65,15 +85,15 @@ class DatabaseWrapper {
 
       if (limitDays != null) {
         final sinceDate = DateTime.now().subtract(Duration(days: limitDays));
-        query = query..where(_database.priceHistory.date.isBiggerThanValue(sinceDate));
+        query = query..where(_database.priceHistoryTable.date.isBiggerThanValue(sinceDate));
       }
 
-      query = query..orderBy([OrderingTerm.asc(_database.priceHistory.date)]);
+      query = query..orderBy([OrderingTerm.asc(_database.priceHistoryTable.date)]);
 
       final results = await query.get();
       
       return results.map((row) {
-        final priceData = row.readTable(_database.priceHistory);
+        final priceData = row.readTable(_database.priceHistoryTable);
         final storeData = row.readTableOrNull(_database.supermarkets);
         
         return PriceHistoryWithStore(
@@ -113,6 +133,108 @@ class DatabaseWrapper {
     }
   }
 
+  // Sauvegarder un magasin
+  Future<void> saveStore(String storeName, {String? address, String? city}) async {
+    try {
+      final existing = await (_database.select(_database.supermarkets)
+        ..where((t) => t.name.equals(storeName)))
+        .getSingleOrNull();
+      
+      if (existing != null) {
+        // Mettre à jour le magasin existant
+        await _database.updateSupermarket(SupermarketsCompanion(
+          id: Value(existing.id),
+          name: Value(storeName),
+          address: Value(address ?? existing.address),
+          city: Value(city ?? existing.city),
+          isActive: const Value(true),
+        ));
+      } else {
+        // Insérer un nouveau magasin
+        await _database.insertSupermarket(SupermarketsCompanion.insert(
+          name: storeName,
+          address: Value(address ?? ''),
+          city: Value(city ?? ''),
+          isActive: const Value(true),
+        ));
+      }
+    } catch (e) {
+      throw Exception('Failed to save store: $e');
+    }
+  }
+
+  /// Sauvegarder les prix d'un produit (par code-barres)
+  /// ✅ ÉTAPE 2 : Sauvegarder les prix d'un produit (par code-barres) - AVEC AUDIT
+  Future<void> saveStorePrices(int barcode, List<StorePrice> prices) async {
+    try {
+      // Récupérer le produit par code-barres
+      final product = await (_database.select(_database.products)
+        ..where((tbl) => tbl.barcode.equals(barcode)))
+        .getSingleOrNull();
+    
+      if (product == null) {
+        throw Exception('Product with barcode $barcode not found in database');
+      }
+    
+      final productId = product.id;
+      debugPrint('✅ [DB] Produit trouvé: ${product.name} (ID: $productId)');
+    
+      // Sauvegarder chaque prix
+      for (final price in prices) {
+        // Récupérer ou créer le magasin
+        final storeId = price.storeId ?? await getOrCreateStore(price.storeName);
+      
+        // Vérifier si un prix existe déjà pour aujourd'hui
+        final today = DateTime.now();
+        final startOfDay = DateTime(today.year, today.month, today.day);
+        final endOfDay = startOfDay.add(const Duration(days: 1));
+      
+        final existing = await (_database.select(_database.priceHistoryTable)
+          ..where((p) => 
+              p.productId.equals(productId) & 
+              p.supermarketId.equals(storeId) &
+              p.date.isBetweenValues(startOfDay, endOfDay)))
+          .getSingleOrNull();
+      
+        if (existing != null) {
+          // ✅ AVEC AUDIT : Mettre à jour le prix existant
+          await (_database.update(_database.priceHistoryTable)
+            ..where((p) => p.id.equals(existing.id)))
+          .write(PriceHistoryTableCompanion(
+            price: Value(price.priceWithPromotionApplied),
+            date: Value(price.lastUpdated),
+            isPromotion: Value(price.hasActivePromotion),
+            promotionDescription: Value(price.promotionDescription),
+            originalPrice: Value(price.originalPrice),
+            // ✅ SUPPRIMÉ : updatedAt (à ajouter dans tables.dart d'abord)
+          ));
+        
+          debugPrint('✅ [DB] Prix mis à jour pour ${price.storeName}');
+        } else {
+          // ✅ AVEC AUDIT : Insérer un nouveau prix
+          await _database.into(_database.priceHistoryTable).insert(PriceHistoryTableCompanion.insert(
+            productId: productId,
+            supermarketId: storeId,
+            price: price.priceWithPromotionApplied,
+            date: price.lastUpdated,
+            isPromotion: Value(price.hasActivePromotion),
+            promotionDescription: Value(price.promotionDescription),
+            originalPrice: Value(price.originalPrice),
+            source: const Value('api'),
+            // ✅ NOUVEAU : createdAt et updatedAt automatiques via withDefault()
+          ));
+        
+          debugPrint('✅ [DB] Nouveau prix ajouté pour ${price.storeName}');
+        }
+      }
+    
+      debugPrint('✅ [DB] ${prices.length} prix sauvegardés pour le code-barres $barcode');
+    } catch (e) {
+      debugPrint('❌ [DB] Erreur sauvegarde prix: $e');
+      throw Exception('Failed to save store prices for barcode $barcode: $e');
+    }
+  }
+
   // ===========================================
   // MÉTHODES HISTORIQUE PRIX
   // ===========================================
@@ -120,7 +242,7 @@ class DatabaseWrapper {
   /// Récupérer la dernière mise à jour pour un produit
   Future<DateTime?> getLastUpdateTime(int productId) async {
     try {
-      final result = await (_database.select(_database.priceHistory)
+      final result = await (_database.select(_database.priceHistoryTable)
         ..where((p) => p.productId.equals(productId))
         ..orderBy([(p) => OrderingTerm.desc(p.date)])
         ..limit(1))
@@ -144,7 +266,7 @@ class DatabaseWrapper {
     String source = 'manual',
   }) async {
     try {
-      await _database.insertPriceHistory(PriceHistoryCompanion.insert(
+      await _database.insertPriceHistory(PriceHistoryTableCompanion.insert(
         productId: productId,
         supermarketId: supermarketId,
         price: price,
@@ -163,7 +285,7 @@ class DatabaseWrapper {
   /// Vérifier si on a des données pour un produit
   Future<bool> hasDataForProduct(int productId) async {
     try {
-      final results = await (_database.select(_database.priceHistory)
+      final results = await (_database.select(_database.priceHistoryTable)
         ..where((p) => p.productId.equals(productId)))
         .get();
       
@@ -284,7 +406,7 @@ class DatabaseWrapper {
     try {
       final cutoffDate = DateTime.now().subtract(Duration(days: keepDays));
       
-      await (_database.delete(_database.priceHistory)
+      await (_database.delete(_database.priceHistoryTable)
         ..where((p) => p.date.isSmallerThanValue(cutoffDate)))
         .go();
     } catch (e) {
@@ -313,7 +435,7 @@ class DatabaseWrapper {
   /// Supprimer l'historique des prix avant une date donnée
   Future<void> deletePriceHistoryBefore(DateTime cutoffDate) async {
     try {
-      await (_database.delete(_database.priceHistory)
+      await (_database.delete(_database.priceHistoryTable)
         ..where((tbl) => tbl.date.isSmallerThanValue(cutoffDate)))
         .go();
     } catch (e) {
@@ -328,7 +450,7 @@ class DatabaseWrapper {
   /// Compter le nombre total d'entrées dans l'historique
   Future<int> countPriceHistoryEntries() async {
     try {
-      final count = await _database.select(_database.priceHistory).get();
+      final count = await _database.select(_database.priceHistoryTable).get();
       return count.length;
     } catch (e) {
       throw Exception('Failed to count price history entries: $e');
@@ -338,7 +460,7 @@ class DatabaseWrapper {
   /// Obtenir la taille approximative de la base de données
   Future<Map<String, int>> getDatabaseStats() async {
     try {
-      final priceHistoryCount = await _database.select(_database.priceHistory).get();
+      final priceHistoryCount = await _database.select(_database.priceHistoryTable).get();
       final supermarketsCount = await _database.select(_database.supermarkets).get();
       final productsCount = await _database.select(_database.products).get();
       final brandsCount = await _database.select(_database.brands).get();
@@ -363,7 +485,7 @@ class DatabaseWrapper {
       if (totalCount <= maxEntries) return;
 
       // Récupérer les IDs des entrées à garder
-      final entriesToKeep = await (_database.select(_database.priceHistory)
+      final entriesToKeep = await (_database.select(_database.priceHistoryTable)
         ..orderBy([
           (tbl) => OrderingTerm.desc(tbl.date),
         ])
@@ -372,7 +494,7 @@ class DatabaseWrapper {
 
       if (entriesToKeep.isNotEmpty) {
         final idsToKeep = entriesToKeep.map((e) => e.id).toList();
-        await (_database.delete(_database.priceHistory)
+        await (_database.delete(_database.priceHistoryTable)
           ..where((tbl) => tbl.id.isNotIn(idsToKeep)))
           .go();
       }
@@ -386,7 +508,7 @@ class DatabaseWrapper {
     try {
       // Note: Cette query SQL brute pourrait ne pas marcher selon la DB
       // Alternative plus sûre : récupérer en Dart et supprimer
-      final allPrices = await _database.select(_database.priceHistory).get();
+      final allPrices = await _database.select(_database.priceHistoryTable).get();
       final seen = <String, int>{};
       final duplicateIds = <int>[];
 
@@ -400,7 +522,7 @@ class DatabaseWrapper {
       }
 
       if (duplicateIds.isNotEmpty) {
-        await (_database.delete(_database.priceHistory)
+        await (_database.delete(_database.priceHistoryTable)
           ..where((tbl) => tbl.id.isIn(duplicateIds)))
           .go();
         debugPrint('Removed ${duplicateIds.length} duplicate prices');
@@ -436,7 +558,7 @@ class DatabaseWrapper {
 
 /// Classe helper pour retourner prix + magasin
 class PriceHistoryWithStore {
-  final PriceHistoryData priceHistory;
+  final PriceHistory priceHistory;
   final Supermarket? supermarket; // ✅ Correct
 
   PriceHistoryWithStore({

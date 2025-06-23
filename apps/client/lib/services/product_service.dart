@@ -270,7 +270,7 @@ class ProductService {
       // ========================================
       debugPrint('📊 Deleting price history for product ${product.id}...');
       try {
-        final deletedPriceCount = await (_database.delete(_database.priceHistory)
+        final deletedPriceCount = await (_database.delete(_database.priceHistoryTable)
           ..where((p) => p.productId.equals(product.id)))
           .go();
         
@@ -487,7 +487,7 @@ class ProductService {
     
     try {
       // Compter les données associées avant suppression
-      final priceHistoryCount = await (_database.select(_database.priceHistory)
+      final priceHistoryCount = await (_database.select(_database.priceHistoryTable)
         ..where((p) => p.productId.equals(productId)))
         .get();
       

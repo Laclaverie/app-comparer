@@ -9,7 +9,7 @@ import 'tables.dart';
 part 'app_database.g.dart';
 
 @DriftDatabase(
-  tables: [Products, Brands, Categories, Supermarkets, PriceHistory, Users],
+  tables: [Products, Brands, Categories, Supermarkets, PriceHistoryTable, Users],
 )
 class AppDatabase extends _$AppDatabase {
   // ✅ Constructeur par défaut : nouvelle base propre
@@ -171,25 +171,25 @@ class AppDatabase extends _$AppDatabase {
   // MÉTHODES HISTORIQUE PRIX
   // ===========================================
   
-  Future<int> insertPriceHistory(PriceHistoryCompanion priceHistory) async {
-    return await into(this.priceHistory).insert(priceHistory);
+  Future<int> insertPriceHistory(PriceHistoryTableCompanion priceHistory) async {
+    return await into(priceHistoryTable).insert(priceHistory);
   }
 
-  Future<List<PriceHistoryData>> getPriceHistoryForProduct(int productId) async {
-    return await (select(priceHistory)..where((p) => p.productId.equals(productId))).get();
+  Future<List<PriceHistory>> getPriceHistoryForProduct(int productId) async {
+    return await (select(priceHistoryTable)..where((p) => p.productId.equals(productId))).get();
   }
 
-  Future<List<PriceHistoryData>> getAllPriceHistory() async {
-    return await select(priceHistory).get();
+  Future<List<PriceHistory>> getAllPriceHistory() async {
+    return await select(priceHistoryTable).get();
   }
 
-  Future<bool> updatePriceHistory(PriceHistoryCompanion priceHistory) async {
-    final rowsAffected = await update(this.priceHistory).replace(priceHistory);
+  Future<bool> updatePriceHistory(PriceHistoryTableCompanion priceHistory) async {
+    final rowsAffected = await update(priceHistoryTable).replace(priceHistory);
     return rowsAffected;
   }
 
   Future<bool> deletePriceHistory(int priceHistoryId) async {
-    final rowsAffected = await (delete(priceHistory)..where((p) => p.id.equals(priceHistoryId))).go();
+    final rowsAffected = await (delete(priceHistoryTable)..where((p) => p.id.equals(priceHistoryId))).go();
     return rowsAffected > 0;
   }
 

@@ -1,24 +1,29 @@
 import 'dart:convert';
-import 'package:data_server/services/image_service.dart' show ImageService;
+import 'package:drift/drift.dart' show Value;
 import 'package:test/test.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shared_models/models/product/productdto.dart';
+
 import '../../lib/data_database.dart';
+import '../../lib/repositories/product_repository.dart';
 import '../../lib/services/product_service.dart';
+import '../../lib/services/image_service.dart';
 import '../../lib/handlers/product_handlers.dart';
 
 void main() {
   group('ProductHandlers', () {
     late DataDatabase database;
+    late ProductRepository productRepository;
     late ImageService imageService;
     late ProductService service;
     late ProductHandlers handlers;
 
     setUp(() async {
       database = DataDatabase.forTesting();
-      imageService = ImageService();  // ← Ajouté
-      service = ProductService(database, imageService);  // ← Mis à jour
-      handlers = ProductHandlers(service, imageService);  // ← Mis à jour si nécessaire
+      productRepository = ProductRepository(database);
+      imageService = ImageService();
+      service = ProductService(productRepository, imageService);
+      handlers = ProductHandlers(service, imageService);
     });
 
     tearDown(() async {
@@ -74,6 +79,7 @@ void main() {
       final product = ProductDto.fromJson(json.decode(body));
       expect(product.id, equals(created.id));
       expect(product.barcode, equals(1234567890));
+      expect(product.name, equals('Test Product'));
     });
 
     test('should return 404 for non-existent barcode', () async {
@@ -151,47 +157,6 @@ void main() {
       expect(error['error'], contains('Invalid JSON format'));
     });
 
-    test('should search products', () async {
-      // Arrange
-      await service.createProduct(ProductDto(
-        barcode: 1111111111,
-        name: 'Apple iPhone',
-      ));
-      await service.createProduct(ProductDto(
-        barcode: 2222222222,
-        name: 'Samsung Galaxy',
-      ));
-
-      final request = Request(
-        'GET',
-        Uri.parse('http://localhost/api/products/search?q=Apple'),
-      );
-
-      // Act
-      final response = await handlers.searchProducts(request);
-
-      // Assert
-      expect(response.statusCode, equals(200));
-      final body = await response.readAsString();
-      final data = json.decode(body);
-      expect(data['products'].length, equals(1));
-      expect(data['query'], equals('Apple'));
-    });
-
-    test('should return 400 for missing search query', () async {
-      // Arrange
-      final request = Request(
-        'GET',
-        Uri.parse('http://localhost/api/products/search'),
-      );
-
-      // Act
-      final response = await handlers.searchProducts(request);
-
-      // Assert
-      expect(response.statusCode, equals(400));
-    });
-
     test('should create product with image fields', () async {
       // Arrange
       final dto = ProductDto(
@@ -214,9 +179,74 @@ void main() {
       expect(response.statusCode, equals(200));
       final body = await response.readAsString();
       final created = ProductDto.fromJson(json.decode(body));
-      expect(created.id, isNotNull);
+      expect(created.barcode, equals(1234567890));
       expect(created.imageFileName, equals('test_image.jpg'));
-      expect(created.imageUrl, equals('/api/images/compressed/test_image.jpg'));  // ← URL générée
+      expect(created.imageUrl, equals('/api/images/compressed/test_image.jpg'));
+    });
+
+    test('should search products by brand', () async {
+      // Arrange - Créer une marque Apple
+      final appleId = await database.into(database.brands).insert(BrandsCompanion(
+        name: const Value('Apple'),
+      ));
+      
+      await service.createProduct(ProductDto(
+        barcode: 1111111111,
+        name: 'iPhone 15',
+        brandId: appleId,
+      ));
+
+      final request = Request(
+        'GET',
+        Uri.parse('http://localhost/api/products/brand?brand=Apple'),
+      );
+
+      // Act
+      final response = await handlers.searchProductsByBrand(request);
+
+      // Assert
+      expect(response.statusCode, equals(200));
+      final body = await response.readAsString();
+      final data = json.decode(body);
+      expect(data['products'].length, equals(1));
+      expect(data['brand'], equals('Apple'));
+    });
+
+    test('should search products by multiple brands', () async {
+      // Arrange - Créer des marques
+      final appleId = await database.into(database.brands).insert(BrandsCompanion(
+        name: const Value('Apple'),
+      ));
+      final samsungId = await database.into(database.brands).insert(BrandsCompanion(
+        name: const Value('Samsung'),
+      ));
+      
+      await service.createProduct(ProductDto(
+        barcode: 1111111111,
+        name: 'iPhone 15',
+        brandId: appleId,
+      ));
+      
+      await service.createProduct(ProductDto(
+        barcode: 2222222222,
+        name: 'Galaxy S24',
+        brandId: samsungId,
+      ));
+
+      final request = Request(
+        'GET',
+        Uri.parse('http://localhost/api/products/brands?brands=Apple,Samsung'),
+      );
+
+      // Act
+      final response = await handlers.searchProductsByBrands(request);
+
+      // Assert
+      expect(response.statusCode, equals(200));
+      final body = await response.readAsString();
+      final data = json.decode(body);
+      expect(data['products'].length, equals(2));
+      expect(data['brands'], equals(['Apple', 'Samsung']));
     });
   });
 }

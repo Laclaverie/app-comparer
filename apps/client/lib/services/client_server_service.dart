@@ -5,6 +5,8 @@ import 'package:logging/logging.dart';
 
 class ClientServerService {
   static const String baseUrl = 'http://192.168.18.5:8080';
+  //static const String baseUrl = 'http://192.168.0.71:8080';
+
   final Logger _logger = Logger('ClientServerService');
   
   Future<bool> checkServerHealth() async {

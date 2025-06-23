@@ -74,22 +74,22 @@ class Supermarkets extends Table {
 }
 
 /// Table de l'historique des prix
-@DataClassName('PriceHistoryData')
-class PriceHistory extends Table {
+@DataClassName('PriceHistory')
+class PriceHistoryTable extends Table {
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get productId => integer().references(Products, #id)();
-  IntColumn get supermarketId => integer().references(Supermarkets, #id)();
+  IntColumn get productId => integer()();
+  IntColumn get supermarketId => integer()();
   RealColumn get price => real()();
   DateTimeColumn get date => dateTime()();
-  
-  // ✅ Ces champs doivent avoir des valeurs par défaut
   BoolColumn get isPromotion => boolean().withDefault(const Constant(false))();
   TextColumn get promotionDescription => text().nullable()();
   RealColumn get originalPrice => real().nullable()();
-  TextColumn get source => text().withDefault(const Constant('manual'))();
+  TextColumn get source => text().nullable()();
   BoolColumn get isValidated => boolean().withDefault(const Constant(false))();
   
+  // ✅ AJOUTER ces champs d'audit :
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 }
 
 /// Table des utilisateurs (copiée depuis shared_models)

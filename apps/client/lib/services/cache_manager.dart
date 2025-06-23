@@ -1,4 +1,5 @@
 // apps/client/lib/services/cache_manager.dart
+import 'dart:async';
 import 'dart:collection';
 import 'package:client_price_comparer/database/database_wrapper.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
@@ -43,6 +44,17 @@ class CacheManager {
     }
   }
 
+  // Methode utile pour gérer la taille du cache mémoire
+  Future<void> manageMemoryCache() async {
+    // Nettoyer la DB d'abord
+    await cleanupDatabase();
+    
+    // Ensuite, nettoyer le cache mémoire si nécessaire
+    if (_cacheKeys.length > maxCacheEntries) {
+      _manageCacheSize();
+    }
+  }
+
   /// Cache LRU pour les données en mémoire
   void _manageCacheSize() {
     while (_cacheKeys.length > maxCacheEntries) {
@@ -84,31 +96,42 @@ class CacheManager {
 
   /// Cache pour les prix actuels des magasins
   Future<List<StorePrice>> getCachedStorePrices(
-    int productId,
+    int barcode,
     Future<List<StorePrice>> Function() fetchFunction,
   ) async {
     // Cache plus court pour les prix actuels (5 minutes)
-    if (_storePricesCache.containsKey(productId)) {
-      return _storePricesCache[productId]!;
+    if (_storePricesCache.containsKey(barcode)) {
+      return _storePricesCache[barcode]!;
     }
     
     final data = await fetchFunction();
-    _storePricesCache[productId] = data;
+    _storePricesCache[barcode] = data;
     
     // Auto-expiry après 5 minutes
     Future.delayed(const Duration(minutes: 5), () {
-      _storePricesCache.remove(productId);
+      _storePricesCache.remove(barcode);
     });
     
     return data;
   }
 
+Future<void> saveStorePrices(
+    int productId,
+    List<StorePrice> prices,
+  ) async {
+    _storePricesCache[productId] = prices;
+    
+    // Sauver en DB
+    await _dbWrapper.saveStorePrices(productId, prices);
+  }
   /// Nettoyer le cache mémoire
   void clearMemoryCache() {
     _priceHistoryCache.clear();
     _storePricesCache.clear();
     _cacheKeys.clear();
   }
+
+ 
 
   /// ✅ AJOUTER : Obtenir les statistiques du cache
   Map<String, int> getCacheStats() {
@@ -120,6 +143,23 @@ class CacheManager {
     };
   }
 
+  Future<List<StorePrice>> mergeAndUpdateStorePrices(int productId,
+   List<StorePrice> cachedProduct,
+    List<StorePrice> serverPrices) async {
+      // Fusionner les prix du cache et du serveur
+    final mergedPrices = <StorePrice>{...cachedProduct, ...serverPrices}.toList();
+    // Trier par date de mise à jour
+    mergedPrices.sort((a, b) => b.lastUpdated.compareTo(a.lastUpdated));
+    // Limiter à 10 entrées
+    // Sauver en cache mémoire
+    _storePricesCache[productId] = mergedPrices;
+    // Sauver en base de données
+    await _dbWrapper.saveStorePrices(productId, mergedPrices);
+    // Nettoyer le cache mémoire si nécessaire
+    unawaited(manageMemoryCache());
+    return mergedPrices;
+
+    }
   /// ✅ AJOUTER : Vérifier si une clé est en cache
   bool hasCachedPriceHistory(int productId, String? storeFilter) {
     final key = _historyKey(productId, storeFilter);
@@ -130,4 +170,5 @@ class CacheManager {
   bool hasCachedStorePrices(int productId) {
     return _storePricesCache.containsKey(productId);
   }
+
 }
