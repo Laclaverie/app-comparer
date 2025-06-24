@@ -4,6 +4,7 @@ import 'package:client_price_comparer/services/product_details_service.dart';
 import 'package:shared_models/models/product/productdto.dart';
 
 import 'package:client_price_comparer/widgets/product_info_card.dart';
+import 'package:client_price_comparer/widgets/store_prices_card.dart';
 
 enum ProductDisplayModeTmp { minimal, advanced }
 
@@ -79,12 +80,16 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ✅ COMPOSANTS SÉPARÉS
             ProductInfoCard(product: _product!),
             const SizedBox(height: 16),
             ProductStatusCard(product: _product!, currentMode: _currentMode),
             const SizedBox(height: 16),
-            // ✅ ÉTAPE 3 : Ajoutera StorePricesCard
+            // ✅ ÉTAPE 3 : StorePricesCard ajoutée
+            StorePricesCard(
+              product: _product!,
+              isAdvancedMode: _currentMode == ProductDisplayModeTmp.advanced,
+            ),
+            const SizedBox(height: 16),
             // ✅ ÉTAPE 4 : Ajoutera PriceHistoryCard  
             // ✅ ÉTAPE 5 : Ajoutera AdvancedModeCard
           ],
