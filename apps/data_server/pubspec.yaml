@@ -13,8 +13,8 @@ dependencies:
   shelf_cors_headers: ^0.1.5
   
   # Database ORM and drivers
-  drift: ^2.26.1
   sqlite3: ^2.4.0
+  drift: ^2.26.1
   
   # JSON handling
   json_annotation: ^4.9.0
@@ -32,24 +32,19 @@ dependencies:
   http: ^1.1.0
 
   # Images
+  image: ^4.5.4
   
-  # api_contracts:
-  #   path: ../../packages/api_contracts
   shared_models:
     path: ../../packages/shared_models
-  image: ^4.5.4
 
 dev_dependencies:
   # Testing
   test: ^1.24.0
-  mockito: ^5.4.6
   
   # Code generation
-  build_runner: ^2.4.7
-  json_serializable: ^6.7.1
-  drift_dev: ^2.26.1
+  build_runner: ^2.4.13  # ✅ CORRECTION : Même version que shared_models
+  json_serializable: ^6.8.0  # ✅ CORRECTION : Même version
+  drift_dev: ^2.26.1 
   
   # Linting
   lints: ^3.0.0
-
-# No flutter section needed - this is a pure Dart server application

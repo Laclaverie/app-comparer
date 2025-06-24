@@ -1,5 +1,6 @@
 import 'package:json_annotation/json_annotation.dart';
-import '../promotion/promotion_type.dart';
+import 'package:flutter/foundation.dart'; // Pour debugPrint
+import 'package:shared_models/models/promotion/promotion_type.dart';
 
 part 'price_promotion.g.dart';
 
@@ -10,9 +11,8 @@ part 'price_promotion.g.dart';
 class PricePromotion {
   final PromotionType type;
   final String description;
-  
-  // Keep the flexible Map but add type-safe getters
   final Map<String, dynamic> parameters;
+  final double? originalPrice;
   
   @JsonKey(name: 'valid_from')
   final DateTime? validFrom;
@@ -26,6 +26,7 @@ class PricePromotion {
     required this.parameters,
     this.validFrom,
     this.validTo,
+    this.originalPrice,
   });
 
   // ====== TYPE-SAFE GETTERS ======
@@ -107,24 +108,45 @@ class PricePromotion {
   }
 
   // ====== BUSINESS LOGIC METHODS ======
-  
+
   /// Calculate the effective price per unit considering the promotion
   double calculateEffectivePrice(double basePrice) {
+    // ✅ AJOUTER : Validation de l'entrée
+    if (basePrice < 0) {
+      debugPrint('⚠️ [PROMOTION] Prix de base négatif: $basePrice');
+      return 0.0;
+    }
+    
     switch (type) {
       case PromotionType.percentageDiscount:
         final discount = percentage;
         if (discount == null) return basePrice;
+        // ✅ AJOUTER : Validation des bornes
+        if (discount < 0 || discount > 100) {
+          debugPrint('⚠️ [PROMOTION] Pourcentage invalide: $discount%');
+          return basePrice;
+        }
         return basePrice * (1 - discount / 100);
         
       case PromotionType.fixedDiscount:
         final discount = discountAmount;
         if (discount == null) return basePrice;
-        return (basePrice - discount).clamp(0, double.infinity);
+        // ✅ AJOUTER : Validation
+        if (discount < 0) {
+          debugPrint('⚠️ [PROMOTION] Montant de réduction négatif: $discount');
+          return basePrice;
+        }
+        return (basePrice - discount).clamp(0.0, double.infinity);
         
       case PromotionType.buyXGetY:
         final buyQty = buyQuantity;
         final getQty = getQuantity;
         if (buyQty == null || getQty == null) return basePrice;
+        // ✅ AJOUTER : Validation
+        if (buyQty <= 0 || getQty <= 0) {
+          debugPrint('⚠️ [PROMOTION] Quantités invalides: buy=$buyQty, get=$getQty');
+          return basePrice;
+        }
         final totalUnits = buyQty + getQty;
         return basePrice * buyQty / totalUnits;
         
@@ -133,23 +155,61 @@ class PricePromotion {
         final quantity = bundleQuantity;
         final total = totalPrice;
         if (quantity == null || total == null) return basePrice;
+        // ✅ AJOUTER : Validation
+        if (quantity <= 0 || total <= 0) {
+          debugPrint('⚠️ [PROMOTION] Bundle invalide: quantity=$quantity, total=$total');
+          return basePrice;
+        }
         return total / quantity;
     }
   }
 
   /// Get savings percentage for display
   double getSavingsPercentage(double basePrice) {
+    // ✅ AJOUTER : Protection division par zéro
+    if (basePrice <= 0) return 0.0;
+  
     final effectivePrice = calculateEffectivePrice(basePrice);
-    if (basePrice == 0) return 0;
     return ((basePrice - effectivePrice) / basePrice) * 100;
   }
 
   /// Check if promotion is currently valid
   bool get isValid {
-    final now = DateTime.now();
-    if (validFrom != null && now.isBefore(validFrom!)) return false;
-    if (validTo != null && now.isAfter(validTo!)) return false;
-    return hasValidParameters;
+    try {
+      final now = DateTime.now();
+      
+      // Vérifier les dates
+      if (validFrom != null && now.isBefore(validFrom!)) return false;
+      if (validTo != null && now.isAfter(validTo!)) return false;
+      
+      // Vérifier les paramètres
+      if (!hasValidParameters) return false;
+      
+      // ✅ AJOUTER : Vérifications métier
+      switch (type) {
+        case PromotionType.percentageDiscount:
+          final pct = percentage;
+          return pct != null && pct >= 0 && pct <= 100;
+          
+        case PromotionType.fixedDiscount:
+          final amt = discountAmount;
+          return amt != null && amt >= 0;
+          
+        case PromotionType.buyXGetY:
+          final buyQty = buyQuantity;
+          final getQty = getQuantity;
+          return buyQty != null && getQty != null && buyQty > 0 && getQty > 0;
+          
+        case PromotionType.buyXForY:
+        case PromotionType.multipleQuantity:
+          final qty = bundleQuantity;
+          final total = totalPrice;
+          return qty != null && total != null && qty > 0 && total > 0;
+      }
+    } catch (e) {
+      debugPrint('❌ [PROMOTION] Erreur validation: $e');
+      return false;
+    }
   }
 
   /// Get simple promotion explanation for unit price
@@ -226,7 +286,7 @@ class PricePromotion {
     );
   }
 
-  /// Create a fixed discount promotion
+  // Create a fixed discount promotion
   factory PricePromotion.fixedDiscount({
     required String description,
     required double amount,
@@ -296,4 +356,9 @@ class PricePromotion {
 
   factory PricePromotion.fromJson(Map<String, dynamic> json) => _$PricePromotionFromJson(json);
   Map<String, dynamic> toJson() => _$PricePromotionToJson(this);
+
+  /// Calculate the effective price per unit (alias pour compatibilité)
+  double applyTo(double originalPrice) {
+    return calculateEffectivePrice(originalPrice);
+  }
 }

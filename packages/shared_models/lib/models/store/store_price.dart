@@ -11,6 +11,7 @@ class StorePrice {
   @JsonKey(name: 'store_name')
   final String storeName;
   
+  /// Original catalog price before any promotions
   final double price;
   
   @JsonKey(name: 'is_current_store', defaultValue: false)
@@ -22,12 +23,16 @@ class StorePrice {
   @JsonKey(includeIfNull: false)
   final PricePromotion? promotion;
 
+  @JsonKey(name: 'store_id', includeIfNull: false)
+  final int? storeId;
+
   StorePrice({
     required this.storeName,
     required this.price,
     required this.isCurrentStore,
     required this.lastUpdated,
     this.promotion,
+    this.storeId,
   });
 
   /// Get the effective price considering promotions
@@ -36,50 +41,22 @@ class StorePrice {
     return promotion!.calculateEffectivePrice(price);
   }
 
-  /// Get the best deal description including promotion details
-  String get dealDescription {
-    if (promotion == null || !promotion!.isValid) {
-      return '€${price.toStringAsFixed(2)} at $storeName';
-    }
-    
-    return '€${effectivePrice.toStringAsFixed(2)} at $storeName (${promotion!.description})';
-  }
-
-  /// Get savings amount compared to regular price
-  double get savingsAmount {
-    return price - effectivePrice;
-  }
-
-  /// Get savings percentage compared to regular price
-  double get savingsPercentage {
-    if (price == 0) return 0;
-    return (savingsAmount / price) * 100;
-  }
-
   /// Check if this store price has an active promotion
   bool get hasActivePromotion {
     return promotion != null && promotion!.isValid;
   }
 
-  /// Get promotion description or empty string if no promotion
-  String get promotionDescription {
-    if (!hasActivePromotion) return '';
+  /// Get promotion description or null if no promotion
+  String? get promotionDescription {
+    if (!hasActivePromotion) return null;
     return promotion!.description;
   }
 
-  /// Get detailed price breakdown including promotion info
-  String get priceBreakdown {
-    if (!hasActivePromotion) {
-      return 'Regular price: €${price.toStringAsFixed(2)}';
-    }
-    
-    final savings = savingsAmount;
-    if (savings > 0) {
-      return 'Original: €${price.toStringAsFixed(2)} → €${effectivePrice.toStringAsFixed(2)} (Save €${savings.toStringAsFixed(2)})';
-    } else {
-      return 'Special price: €${effectivePrice.toStringAsFixed(2)}';
-    }
-  }
+  /// ✅ CORRECTION : Getter au lieu de duplication de logique
+  double get priceWithPromotionApplied => effectivePrice;
+
+  /// ✅ NOUVEAU : Prix original pour base de données (clarté)
+  double get originalPrice => promotion?.originalPrice ?? price;
 
   factory StorePrice.fromJson(Map<String, dynamic> json) => _$StorePriceFromJson(json);
   Map<String, dynamic> toJson() => _$StorePriceToJson(this);

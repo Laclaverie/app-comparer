@@ -1,20 +1,24 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:test/test.dart';
-import 'package:shared_models/productdto.dart';
+import 'package:shared_models/models/product/productdto.dart';
+
 import '../../lib/data_database.dart';
 import '../../lib/services/product_service.dart';
-import 'package:data_server/services/image_service.dart';
-
+import '../../lib/services/image_service.dart';
+import '../../lib/repositories/product_repository.dart';
 
 void main() {
   group('ProductService', () {
     late DataDatabase database;
+    late ProductRepository productRepository;
     late ImageService imageService;
     late ProductService service;
 
     setUp(() async {
       database = DataDatabase.forTesting();
+      productRepository = ProductRepository(database);
       imageService = ImageService();
-      service = ProductService(database, imageService);
+      service = ProductService(productRepository, imageService);
     });
 
     tearDown(() async {
@@ -160,36 +164,48 @@ void main() {
       ));
 
       // Act
-      await service.deleteProduct(created.id!);
+      await service.deleteProductByBarcode(created.barcode);
 
       // Assert
       final found = await service.getProductByBarcode(1234567890);
       expect(found, isNull);
     });
 
-    test('should search products', () async {
-      // Arrange
+    test('should search products by brand', () async {
+      // Arrange - ✅ CRÉER LES MARQUES D'ABORD
+      final appleId = await database.into(database.brands).insert(BrandsCompanion(
+        name: const Value('Apple'),
+      ));
+      final samsungId = await database.into(database.brands).insert(BrandsCompanion(
+        name: const Value('Samsung'),
+      ));
+
+      // ✅ CRÉER LES PRODUITS AVEC DES BRAND_IDS
       await service.createProduct(ProductDto(
         barcode: 1111111111,
-        name: 'Apple iPhone',
+        name: 'iPhone 15 Pro',
+        brandId: appleId,  // ✅ AJOUT du brandId
       ));
       await service.createProduct(ProductDto(
         barcode: 2222222222,
-        name: 'Samsung Galaxy',
+        name: 'Galaxy S24 Ultra',
+        brandId: samsungId,  // ✅ AJOUT du brandId
       ));
       await service.createProduct(ProductDto(
         barcode: 3333333333,
-        name: 'Apple iPad',
+        name: 'iPad Pro',
+        brandId: appleId,  // ✅ AJOUT du brandId
       ));
 
       // Act
-      final appleProducts = await service.searchProducts('Apple');
-      final samsungProducts = await service.searchProducts('Samsung');
+      final appleProducts = await service.searchProductsByBrand('Apple');
+      final samsungProducts = await service.searchProductsByBrand('Samsung');
 
       // Assert
-      expect(appleProducts.length, equals(2));
-      expect(samsungProducts.length, equals(1));
-      expect(appleProducts.every((p) => p.name.contains('Apple')), isTrue);
+      expect(appleProducts.length, equals(2)); // ✅ iPhone + iPad
+      expect(samsungProducts.length, equals(1)); // ✅ Galaxy
+      expect(appleProducts.every((p) => p.brandId == appleId), isTrue);
+      expect(samsungProducts.every((p) => p.brandId == samsungId), isTrue);
     });
 
     test('should create product and return with image URL', () async {

@@ -1,0 +1,1 @@
+export 'tables_product.dart';
