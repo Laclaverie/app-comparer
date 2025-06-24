@@ -299,6 +299,7 @@ class _PriceHistoryCardState extends State<PriceHistoryCard> {
           PriceHistoryChart(
             priceHistory: filteredHistory,
             selectedPeriodDays: _selectedPeriodDays,
+            isAdvancedMode: widget.isAdvancedMode,
           )
         else
           PriceHistoryTimeline(
