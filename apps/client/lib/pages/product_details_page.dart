@@ -3,6 +3,8 @@ import 'package:client_price_comparer/database/app_database.dart';
 import 'package:client_price_comparer/services/product_details_service.dart';
 import 'package:shared_models/models/product/productdto.dart';
 
+import 'package:client_price_comparer/widgets/product_info_card.dart';
+
 enum ProductDisplayModeTmp { minimal, advanced }
 
 class ProductDetailsPage extends StatefulWidget {
@@ -102,136 +104,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   Future<void> _refreshData() async {
     // ✅ IMPLÉMENTATION SIMPLE POUR L'INSTANT
     setState(() {}); // Rebuild
-  }
-}
-
-/// ✅ COMPOSANT : Informations sur le produit
-class ProductInfoCard extends StatelessWidget {
-  final ProductDto product;
-  
-  const ProductInfoCard({
-    super.key,
-    required this.product,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Titre
-            Text(
-              product.name,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            
-            // Description
-            if (product.description != null) ...[
-              Text(
-                product.description!,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 12),
-            ],
-            
-            // Code-barres
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                'Code-barres: ${product.barcode}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontFamily: 'monospace',
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // Image (si disponible)
-            if (product.imageUrl != null) ...[
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  product.imageUrl!,
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Container(
-                      height: 200,
-                      color: Colors.grey[200],
-                      child: const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircularProgressIndicator(),
-                            SizedBox(height: 8),
-                            Text('Loading image...'),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      height: 200,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.image_not_supported, size: 48),
-                            SizedBox(height: 8),
-                            Text('Image not available'),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ] else ...[
-              // Placeholder si pas d'image
-              Container(
-                height: 200,
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[300]!),
-                ),
-                child: const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.photo, size: 48, color: Colors.grey),
-                      SizedBox(height: 8),
-                      Text(
-                        'No image available',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
   }
 }
 
