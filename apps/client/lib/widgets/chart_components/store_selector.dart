@@ -19,11 +19,12 @@ class StoreSelector extends StatefulWidget {
 
 class _StoreSelectorState extends State<StoreSelector> {
   Map<int, bool> _localStoreVisibility = {};
+  int? _bestPriceStoreId;
 
   @override
   void initState() {
     super.initState();
-    _updateLocalVisibility();
+    _forceSmartInitialization(); // ✅ Force la sélection intelligente
   }
 
   @override
@@ -35,10 +36,93 @@ class _StoreSelectorState extends State<StoreSelector> {
   }
 
   void _updateLocalVisibility() {
-    _localStoreVisibility = Map.fromEntries(
-      widget.storeData.entries.map((entry) => MapEntry(entry.key, entry.value.isVisible))
-    );
+    // ✅ Identifier le champion AVANT tout
+    _bestPriceStoreId = StoreComparisonService.findBestPriceStoreId(widget.storeData);
+    
+    // ✅ DEBUG : Vérifier les données
+    print('🏪 Magasins disponibles: ${widget.storeData.keys.toList()}');
+    print('🏆 Champion identifié: $_bestPriceStoreId');
+    
+    // ✅ Vérifier la sélection existante
+    final visibleStores = widget.storeData.values.where((store) => store.isVisible).toList();
+    final hasExistingSelection = visibleStores.isNotEmpty;
+    
+    print('📊 Magasins actuellement visibles: ${visibleStores.map((s) => '${s.storeId}:${s.storeName}').toList()}');
+    print('🔍 A une sélection existante: $hasExistingSelection');
+    
+    if (hasExistingSelection) {
+      // ✅ Garder la sélection existante
+      print('✅ Conservation de la sélection existante');
+      _localStoreVisibility = Map.fromEntries(
+        widget.storeData.entries.map((entry) {
+          return MapEntry(entry.key, entry.value.isVisible);
+        }),
+      );
+    } else {
+      // ✅ Appliquer la sélection intelligente
+      print('🎯 Application de la sélection intelligente...');
+      
+      final smartSelection = StoreComparisonService.calculateSmartDefaultSelection(
+        widget.storeData,
+        isAdvancedMode: widget.isAdvancedMode,
+      );
+      
+      print('🎯 Sélection calculée: $smartSelection');
+
+      _localStoreVisibility = Map.fromEntries(
+        widget.storeData.entries.map((entry) {
+          final storeId = entry.key;
+          final shouldBeVisible = smartSelection.contains(storeId);
+          print('   - Magasin $storeId (${entry.value.storeName}): $shouldBeVisible');
+          return MapEntry(storeId, shouldBeVisible);
+        }),
+      );
+
+      // ✅ Notifier le parent des nouvelles sélections
+      print('📢 Notification du parent...');
+      for (final entry in widget.storeData.entries) {
+        final storeId = entry.key;
+        final shouldBeVisible = smartSelection.contains(storeId);
+        print('   -> onStoreToggled($storeId, $shouldBeVisible)');
+        widget.onStoreToggled(storeId, shouldBeVisible);
+      }
+    }
+    
+    print('✅ _localStoreVisibility final: $_localStoreVisibility');
+    print('=' * 50);
   }
+
+  // lib/widgets/chart_components/store_selector.dart - Reset forcé
+void _forceSmartInitialization() {
+  print('🔄 FORCE Smart Initialization');
+  
+  _bestPriceStoreId = StoreComparisonService.findBestPriceStoreId(widget.storeData);
+  
+  final smartSelection = StoreComparisonService.calculateSmartDefaultSelection(
+    widget.storeData,
+    isAdvancedMode: widget.isAdvancedMode,
+  );
+  
+  print('🎯 Sélection forcée: $smartSelection');
+  print('🏆 Champion: $_bestPriceStoreId');
+  
+  _localStoreVisibility = Map.fromEntries(
+    widget.storeData.entries.map((entry) {
+      final storeId = entry.key;
+      final shouldBeVisible = smartSelection.contains(storeId);
+      return MapEntry(storeId, shouldBeVisible);
+    }),
+  );
+
+  // ✅ Notifier le parent
+  for (final entry in widget.storeData.entries) {
+    final storeId = entry.key;
+    final shouldBeVisible = smartSelection.contains(storeId);
+    widget.onStoreToggled(storeId, shouldBeVisible);
+  }
+  
+  setState(() {}); // Force rebuild
+}
 
   @override
   Widget build(BuildContext context) {
@@ -271,25 +355,18 @@ Widget _buildStoreGrid({required bool isCompactMode}) {
   final storeEntries = widget.storeData.entries.toList();
   final storeCount = storeEntries.length;
   
-  // ✅ CORRIGÉ : Logique plus précise pour 5 magasins
+  // ✅ CORRIGÉ : Maximum 2 colonnes pour la lisibilité
   int crossAxisCount;
   
-  if (storeCount <= 2) {
-    crossAxisCount = 2; // 1 ligne, 2 colonnes max
-  } else if (storeCount <= 4) {
-    crossAxisCount = 2; // 2 lignes, 2 colonnes
-  } else if (storeCount <= 6) {
-    crossAxisCount = 3; // 3 colonnes pour 5-6 magasins
-  } else if (storeCount <= 9) {
-    crossAxisCount = 3; // 3 lignes, 3 colonnes
+  if (storeCount == 1) {
+    crossAxisCount = 1; // 1 seul magasin = 1 colonne
   } else {
-    crossAxisCount = 4; // 4+ colonnes pour beaucoup de magasins
+    crossAxisCount = 2; // ✅ Toujours 2 colonnes maximum
   }
   
-  // ✅ Calculer la hauteur plus précisément
   final rowCount = (storeCount / crossAxisCount).ceil();
-  final itemHeight = isCompactMode ? 32.0 : 36.0; // Réduits pour éviter le débordement
-  final spacing = 6.0;
+  final itemHeight = isCompactMode ? 36.0 : 40.0; // ✅ Légèrement plus haut pour plus de confort
+  final spacing = 8.0; // ✅ Espacement légèrement augmenté
   final gridHeight = (rowCount * itemHeight) + ((rowCount - 1) * spacing);
     
   return SizedBox(
@@ -298,7 +375,7 @@ Widget _buildStoreGrid({required bool isCompactMode}) {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
-        childAspectRatio: isCompactMode ? 3.0 : 2.8, // ✅ CORRIGÉ : Ratio plus large
+        childAspectRatio: isCompactMode ? 3.5 : 3.2, // ✅ Ratio plus large pour 2 colonnes
         crossAxisSpacing: spacing,
         mainAxisSpacing: spacing,
       ),
@@ -313,6 +390,7 @@ Widget _buildStoreGrid({required bool isCompactMode}) {
           isVisible: _localStoreVisibility[storeId] ?? false,
           onToggled: (isVisible) => _toggleStore(storeId, isVisible),
           isCompactMode: isCompactMode,
+          isBestPrice: storeId == _bestPriceStoreId,
         );
       },
     ),
@@ -326,78 +404,132 @@ class _UnifiedStoreChip extends StatelessWidget {
   final bool isVisible;
   final Function(bool) onToggled;
   final bool isCompactMode;
+  final bool isBestPrice;
 
   const _UnifiedStoreChip({
     required this.storeData,
     required this.isVisible,
     required this.onToggled,
     required this.isCompactMode,
+    this.isBestPrice = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final latestPrice = StoreComparisonService.getLatestPrice(storeData);
+    
     return SizedBox(
-      width: double.infinity, // ✅ Utiliser tout l'espace de la cellule
+      width: double.infinity,
       child: FilterChip(
         label: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Indicateur couleur
-            Container(
-              width: isCompactMode ? 10 : 12,
-              height: isCompactMode ? 10 : 12,
-              decoration: BoxDecoration(
-                color: storeData.color,
-                shape: BoxShape.circle,
-              ),
-            ),
-            SizedBox(width: isCompactMode ? 4 : 6),
-            
-            // ✅ Nom du magasin avec overflow géré
-            Expanded( // ✅ Prendre l'espace disponible
-              child: Text(
-                storeData.storeName,
-                style: TextStyle(
-                  fontSize: isCompactMode ? 11 : 12,
-                  fontWeight: FontWeight.w500,
+            // ✅ Indicateur couleur avec couronne (plus visible)
+            Stack(
+              children: [
+                Container(
+                  width: isCompactMode ? 12 : 14, // ✅ Légèrement plus grand
+                  height: isCompactMode ? 12 : 14,
+                  decoration: BoxDecoration(
+                    color: storeData.color,
+                    shape: BoxShape.circle,
+                  ),
                 ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1, // ✅ Une seule ligne pour la grille
+                if (isBestPrice)
+                  Positioned(
+                    top: -3,
+                    right: -3,
+                    child: Icon(
+                      Icons.star,
+                      size: 10, // ✅ Étoile plus visible
+                      color: Colors.amber.shade600,
+                    ),
+                  ),
+              ],
+            ),
+            SizedBox(width: isCompactMode ? 6 : 8), // ✅ Plus d'espace
+            
+            // ✅ Nom du magasin avec icône champion
+            Expanded(
+              child: Row(
+                children: [
+                  if (isBestPrice) ...[
+                    Icon(
+                      Icons.emoji_events,
+                      size: isCompactMode ? 12 : 14, // ✅ Plus visible
+                      color: Colors.amber.shade600,
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                  Expanded(
+                    child: Text(
+                      storeData.storeName,
+                      style: TextStyle(
+                        fontSize: isCompactMode ? 12 : 13, // ✅ Texte plus lisible
+                        fontWeight: isBestPrice ? FontWeight.w700 : FontWeight.w500,
+                        color: isBestPrice ? Colors.amber.shade800 : null,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ],
               ),
             ),
             
-            // Compteur de données (plus compact)
+            // ✅ Compteur + prix actuel (plus d'espace disponible)
             if (storeData.prices.isNotEmpty) ...[
-              const SizedBox(width: 2),
-              Text(
-                '(${storeData.prices.length})',
-                style: TextStyle(
-                  fontSize: isCompactMode ? 8 : 9, // ✅ Plus petit
-                  color: Colors.grey.shade600,
-                ),
+              const SizedBox(width: 8), // ✅ Plus d'espace
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '(${storeData.prices.length})',
+                    style: TextStyle(
+                      fontSize: isCompactMode ? 9 : 10, // ✅ Plus lisible
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  if (!isCompactMode && latestPrice != null) ...[
+                    const SizedBox(height: 1),
+                    Text(
+                      '${latestPrice.toStringAsFixed(2)}€',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: isBestPrice ? FontWeight.bold : FontWeight.normal,
+                        color: isBestPrice ? Colors.green.shade700 : Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ],
             
-            // Indicateur de qualité (mode avancé uniquement)
+            // ✅ Indicateur de qualité (plus visible)
             if (!isCompactMode && storeData.prices.isNotEmpty) ...[
-              const SizedBox(width: 2),
+              const SizedBox(width: 6),
               _buildQualityIndicator(),
             ],
           ],
         ),
         selected: isVisible,
         onSelected: onToggled,
-        selectedColor: storeData.color.withValues(alpha: 0.2),
-        checkmarkColor: storeData.color,
+        selectedColor: isBestPrice 
+            ? Colors.amber.withValues(alpha: 0.3)
+            : storeData.color.withValues(alpha: 0.2),
+        checkmarkColor: isBestPrice ? Colors.amber.shade700 : storeData.color,
         side: BorderSide(
-          color: storeData.color.withValues(alpha: 0.5),
-          width: 1,
+          color: isBestPrice 
+              ? Colors.amber.shade600
+              : storeData.color.withValues(alpha: 0.5),
+          width: isBestPrice ? 2 : 1,
         ),
         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        // ✅ Padding ajusté pour la grille
+        // ✅ Padding ajusté pour 2 colonnes
         labelPadding: EdgeInsets.symmetric(
-          horizontal: isCompactMode ? 4 : 6,
-          vertical: 0,
+          horizontal: isCompactMode ? 6 : 8,
+          vertical: isCompactMode ? 2 : 4,
         ),
       ),
     );
@@ -416,8 +548,8 @@ class _UnifiedStoreChip extends StatelessWidget {
     }
     
     return Container(
-      width: 6,
-      height: 6,
+      width: 8, // ✅ Plus visible
+      height: 8,
       decoration: BoxDecoration(
         color: color,
         shape: BoxShape.circle,

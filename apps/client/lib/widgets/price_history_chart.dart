@@ -3,6 +3,7 @@ import 'package:client_price_comparer/widgets/chart_components/multi_store_chart
 import 'package:client_price_comparer/widgets/chart_components/price_chart_axes.dart';
 import 'package:client_price_comparer/widgets/chart_components/store_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:shared_models/models/price/price_historydto.dart';
 import '../services/charts/price_chart_data_service.dart';
 import '../services/charts/price_statistics_service.dart';
@@ -244,10 +245,22 @@ class _PriceChartCanvasState extends State<_PriceChartCanvas> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Sélecteur de magasins
+        // ✅ Sélecteur avec callback safe
         StoreSelector(
           storeData: _storeData,
-          onStoreToggled: _onStoreToggled,
+          onStoreToggled: (storeId, isVisible) {
+            // ✅ Vérifier qu'on n'est pas en train de builder
+            if (SchedulerBinding.instance.schedulerPhase != SchedulerPhase.persistentCallbacks) {
+              _onStoreToggled(storeId, isVisible);
+            } else {
+              // ✅ Différer si on est en train de builder
+              SchedulerBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  _onStoreToggled(storeId, isVisible);
+                }
+              });
+            }
+          },
           isAdvancedMode: widget.isAdvancedMode,
         ),
         const SizedBox(height: 12),
@@ -285,6 +298,8 @@ class _PriceChartCanvasState extends State<_PriceChartCanvas> {
   }
 
   void _onStoreToggled(int storeId, bool isVisible) {
+    if (!mounted) return;
+    
     setState(() {
       _storeData[storeId] = _storeData[storeId]!.copyWith(isVisible: isVisible);
       _globalStats = StoreComparisonService.calculateGlobalStats(_storeData);

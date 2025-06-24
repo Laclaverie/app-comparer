@@ -213,7 +213,7 @@ class _StorePricesCardState extends State<StorePricesCard> {
               isAdvancedMode: widget.isAdvancedMode,
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }

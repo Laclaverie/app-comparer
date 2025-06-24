@@ -1,4 +1,3 @@
-
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -64,6 +63,121 @@ class StoreComparisonService {
     });
     
     return allPoints;
+  }
+
+  ///  Calcule la sélection intelligente par défaut
+  static Set<int> calculateSmartDefaultSelection(
+    Map<int, StoreChartData> storeData, {
+    bool isAdvancedMode = false,
+  }) {
+    final storesWithPrices = storeData.entries
+        .where((entry) => entry.value.prices.isNotEmpty)
+        .toList();
+
+    if (storesWithPrices.isEmpty) {
+      // Si aucun prix, sélectionner le premier magasin disponible
+      return storeData.keys.take(1).toSet();
+    }
+
+    // ✅ Trouver le magasin avec le meilleur prix récent
+    final bestPriceStore = _findBestPriceStore(storesWithPrices);
+    final selectedStores = <int>{bestPriceStore};
+
+    // ✅ En mode avancé, ajouter des magasins pour comparaison
+    if (isAdvancedMode) {
+      selectedStores.addAll(_findComparisonStores(storesWithPrices, bestPriceStore));
+    }
+
+    return selectedStores;
+  }
+
+  /// ✅ Trouve le magasin avec le meilleur prix récent
+  static int _findBestPriceStore(List<MapEntry<int, StoreChartData>> storesWithPrices) {
+    final today = DateTime.now();
+    final storeScores = <int, double>{};
+
+    for (final entry in storesWithPrices) {
+      final storeId = entry.key;
+      final storeData = entry.value;
+      
+      // Trier les prix par date (plus récent en premier)
+      final sortedPrices = storeData.prices.toList()
+        ..sort((a, b) => b.date.compareTo(a.date));
+      
+      final latestPrice = sortedPrices.first;
+      final priceDate = latestPrice.date;
+
+      // Calculer un score basé sur le prix et la fraîcheur des données
+      final daysSincePrice = today.difference(priceDate).inDays;
+      final freshnessMultiplier = 1 + (daysSincePrice * 0.001); // Légère pénalité par jour
+      final adjustedPrice = latestPrice.price * freshnessMultiplier;
+      
+      storeScores[storeId] = adjustedPrice;
+    }
+
+    // Retourner le magasin avec le meilleur score (prix le plus bas ajusté)
+    return storeScores.entries
+        .reduce((a, b) => a.value < b.value ? a : b)
+        .key;
+  }
+
+  /// ✅ Trouve des magasins supplémentaires pour comparaison en mode avancé
+  static Set<int> _findComparisonStores(
+    List<MapEntry<int, StoreChartData>> storesWithPrices, 
+    int bestPriceStore
+  ) {
+    final comparisonStores = <int>{};
+    
+    // 1. Ajouter le magasin avec le plus de données (historique)
+    final mostDataStore = storesWithPrices
+        .where((entry) => entry.key != bestPriceStore)
+        .fold<MapEntry<int, StoreChartData>?>(null, (prev, current) {
+          if (prev == null) return current;
+          return current.value.prices.length > prev.value.prices.length ? current : prev;
+        });
+    
+    if (mostDataStore != null) {
+      comparisonStores.add(mostDataStore.key);
+    }
+
+    // 2. Ajouter 1-2 magasins avec les prix les plus compétitifs
+    final sortedByPrice = storesWithPrices
+        .where((entry) => entry.key != bestPriceStore && !comparisonStores.contains(entry.key))
+        .map((entry) {
+          final latestPrice = entry.value.prices
+              .reduce((a, b) => a.date.isAfter(b.date) ? a : b);
+          return MapEntry(entry.key, latestPrice.price);
+        })
+        .toList()
+      ..sort((a, b) => a.value.compareTo(b.value));
+
+    // Ajouter jusqu'à 2 magasins supplémentaires
+    for (int i = 0; i < 2 && i < sortedByPrice.length; i++) {
+      comparisonStores.add(sortedByPrice[i].key);
+    }
+
+    return comparisonStores;
+  }
+
+  /// ✅ NOUVEAU : Identifie le magasin champion (meilleur prix)
+  static int? findBestPriceStoreId(Map<int, StoreChartData> storeData) {
+    final storesWithPrices = storeData.entries
+        .where((entry) => entry.value.prices.isNotEmpty)
+        .toList();
+
+    if (storesWithPrices.isEmpty) return null;
+
+    return _findBestPriceStore(storesWithPrices);
+  }
+
+  /// ✅ NOUVEAU : Obtient le prix le plus récent d'un magasin
+  static double? getLatestPrice(StoreChartData storeData) {
+    if (storeData.prices.isEmpty) return null;
+    
+    final sortedPrices = storeData.prices.toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+
+    return sortedPrices.first.price;
   }
 
   /// Calcule les statistiques globales pour tous les magasins sélectionnés
