@@ -156,3 +156,6 @@ pubspec_overrides.yaml
 # database files
 *.db
 *.sqlite
+
+# citations (remove at the end of the project to keep the citations in the repos)
+citations/*
