@@ -5,6 +5,7 @@ import 'package:shared_models/models/product/productdto.dart';
 
 import 'package:client_price_comparer/widgets/product_info_card.dart';
 import 'package:client_price_comparer/widgets/store_prices_card.dart';
+import 'package:client_price_comparer/widgets/price_history_card.dart';
 
 enum ProductDisplayModeTmp { minimal, advanced }
 
@@ -84,13 +85,16 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             const SizedBox(height: 16),
             ProductStatusCard(product: _product!, currentMode: _currentMode),
             const SizedBox(height: 16),
-            // ✅ ÉTAPE 3 : StorePricesCard ajoutée
             StorePricesCard(
               product: _product!,
               isAdvancedMode: _currentMode == ProductDisplayModeTmp.advanced,
             ),
             const SizedBox(height: 16),
-            // ✅ ÉTAPE 4 : Ajoutera PriceHistoryCard  
+            PriceHistoryCard(
+              product: _product!,
+              isAdvancedMode: _currentMode == ProductDisplayModeTmp.advanced,
+            ),
+            const SizedBox(height: 16),
             // ✅ ÉTAPE 5 : Ajoutera AdvancedModeCard
           ],
         ),
