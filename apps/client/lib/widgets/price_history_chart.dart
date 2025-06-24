@@ -1,3 +1,7 @@
+import 'package:client_price_comparer/services/charts/store_comparison_service.dart';
+import 'package:client_price_comparer/widgets/chart_components/multi_store_chart_painter.dart';
+import 'package:client_price_comparer/widgets/chart_components/price_chart_axes.dart';
+import 'package:client_price_comparer/widgets/chart_components/store_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_models/models/price/price_historydto.dart';
 import '../services/charts/price_chart_data_service.dart';
@@ -22,11 +26,11 @@ class PriceHistoryChart extends StatelessWidget {
       return _buildEmptyChart(context);
     }
 
-    // ✅ Service fait tous les calculs
     final chartData = PriceChartDataService.prepareChartData(priceHistory, isAdvancedMode);
 
     return Container(
-      height: isAdvancedMode ? 320 : 200,
+      height: isAdvancedMode ? 800 : 500, // +200px mode avancé, +200px mode normal
+      width: double.infinity, // ✅ Prendre toute la largeur disponible
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
@@ -37,13 +41,30 @@ class PriceHistoryChart extends StatelessWidget {
         children: [
           _PriceChartHeader(chartData: chartData, isAdvancedMode: isAdvancedMode),
           const SizedBox(height: 16),
-          Expanded(child: _PriceChartCanvas(chartData: chartData, isAdvancedMode: isAdvancedMode)),
-          const SizedBox(height: 8),
+          Expanded(
+            // ✅ Le graphique prend le maximum d'espace
+            flex: 5, // Encore plus d'espace pour le graphique
+            child: _PriceChartCanvas(
+              priceHistory: priceHistory, 
+              isAdvancedMode: isAdvancedMode, 
+              selectedPeriodDays: selectedPeriodDays
+            ),
+          ),
+          const SizedBox(height: 12),
           if (isAdvancedMode) ...[
-            _PriceChartAdvancedStats(chartData: chartData),
-            const SizedBox(height: 8),
+            Flexible(
+              flex: 1,
+              child: SingleChildScrollView(
+                child: _PriceChartAdvancedStats(chartData: chartData),
+              ),
+            ),
+            const SizedBox(height: 12),
           ],
-          _PriceChartFooter(selectedPeriodDays: selectedPeriodDays, dataPointsCount: chartData.sortedHistory.length, isAdvancedMode: isAdvancedMode),
+          _PriceChartFooter(
+            selectedPeriodDays: selectedPeriodDays, 
+            dataPointsCount: chartData.sortedHistory.length, 
+            isAdvancedMode: isAdvancedMode
+          ),
         ],
       ),
     );
@@ -51,7 +72,8 @@ class PriceHistoryChart extends StatelessWidget {
 
   Widget _buildEmptyChart(BuildContext context) {
     return Container(
-      height: 200,
+      height: 500, // ✅ Grand même quand vide
+      width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
         borderRadius: BorderRadius.circular(12),
@@ -61,11 +83,23 @@ class PriceHistoryChart extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.show_chart, size: 48, color: Colors.grey.shade400),
+            Icon(Icons.show_chart, size: 80, color: Colors.grey.shade400), // ✅ Icône encore plus grande
+            const SizedBox(height: 16),
+            Text(
+              'Pas assez de données pour le graphique',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 18, // ✅ Texte plus grand
+                fontWeight: FontWeight.w500,
+              ),
+            ),
             const SizedBox(height: 8),
             Text(
-              'Pas assez de données',
-              style: TextStyle(color: Colors.grey.shade600),
+              'Ajoutez des prix pour voir l\'évolution',
+              style: TextStyle(
+                color: Colors.grey.shade500,
+                fontSize: 14,
+              ),
             ),
           ],
         ),
@@ -166,25 +200,96 @@ class _PriceChartHeader extends StatelessWidget {
   }
 }
 
-class _PriceChartCanvas extends StatelessWidget {
-  final PriceChartData chartData;
+class _PriceChartCanvas extends StatefulWidget {
+  final List<PriceHistoryDto> priceHistory;
   final bool isAdvancedMode;
+  final int selectedPeriodDays;
 
   const _PriceChartCanvas({
-    required this.chartData,
+    required this.priceHistory,
     required this.isAdvancedMode,
+    required this.selectedPeriodDays,
   });
 
   @override
+  State<_PriceChartCanvas> createState() => _PriceChartCanvasState();
+}
+
+class _PriceChartCanvasState extends State<_PriceChartCanvas> {
+  Map<int, StoreChartData> _storeData = {};
+  Map<int, List<Offset>> _storePoints = {};
+  BasicPriceStats _globalStats = BasicPriceStats.empty();
+
+  @override
+  void initState() {
+    super.initState();
+    _updateChartData();
+  }
+
+  @override
+  void didUpdateWidget(_PriceChartCanvas oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.priceHistory != widget.priceHistory) {
+      _updateChartData();
+    }
+  }
+
+  void _updateChartData() {
+    _storeData = StoreComparisonService.groupPricesByStore(widget.priceHistory);
+    _globalStats = StoreComparisonService.calculateGlobalStats(_storeData);
+    _storePoints = StoreComparisonService.calculateMultiStorePoints(_storeData, _globalStats);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      size: Size.infinite,
-      painter: _SimplePriceChartPainter(
-        chartData: chartData,
-        primaryColor: Theme.of(context).primaryColor,
-        isAdvancedMode: isAdvancedMode,
-      ),
+    return Column(
+      children: [
+        // Sélecteur de magasins
+        StoreSelector(
+          storeData: _storeData,
+          onStoreToggled: _onStoreToggled,
+          isAdvancedMode: widget.isAdvancedMode,
+        ),
+        const SizedBox(height: 12),
+        
+        // Graphique avec axes
+        Expanded(
+          child: Stack(
+            children: [
+              // Axes
+              Positioned.fill(
+                child: PriceChartAxes(
+                  stats: _globalStats,
+                  selectedPeriodDays: widget.selectedPeriodDays,
+                  chartSize: Size.infinite,
+                  isAdvancedMode: widget.isAdvancedMode,
+                ),
+              ),
+              
+              // Graphique principal
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: MultiStoreChartPainter(
+                    storeData: _storeData,
+                    storePoints: _storePoints,
+                    globalStats: _globalStats,
+                    isAdvancedMode: widget.isAdvancedMode,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
+  }
+
+  void _onStoreToggled(int storeId, bool isVisible) {
+    setState(() {
+      _storeData[storeId] = _storeData[storeId]!.copyWith(isVisible: isVisible);
+      _globalStats = StoreComparisonService.calculateGlobalStats(_storeData);
+      _storePoints = StoreComparisonService.calculateMultiStorePoints(_storeData, _globalStats);
+    });
   }
 }
 
@@ -253,136 +358,4 @@ class _PriceChartAdvancedStats extends StatelessWidget {
       ),
     );
   }
-}
-
-// ✅ Painter simplifié - reçoit des données pré-calculées
-class _SimplePriceChartPainter extends CustomPainter {
-  final PriceChartData chartData;
-  final Color primaryColor;
-  final bool isAdvancedMode;
-
-  _SimplePriceChartPainter({
-    required this.chartData,
-    required this.primaryColor,
-    required this.isAdvancedMode,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (chartData.isEmpty) return;
-
-    // Convertir les points normalisés en pixels
-    final pixelPoints = chartData.chartPoints.map((point) {
-      return Offset(point.dx * size.width, point.dy * size.height);
-    }).toList();
-
-    _drawChart(canvas, size, pixelPoints);
-  }
-
-  void _drawChart(Canvas canvas, Size size, List<Offset> points) {
-    // 1. Zone sous la courbe
-    _drawFillArea(canvas, size, points);
-    
-    // 2. Ligne principale
-    _drawMainLine(canvas, points);
-    
-    // 3. Points de données
-    _drawDataPoints(canvas, points);
-    
-    // 4. Mode avancé : outliers, moyennes mobiles, etc.
-    if (isAdvancedMode) {
-      _drawAdvancedElements(canvas, size, points);
-    }
-  }
-
-  void _drawFillArea(Canvas canvas, Size size, List<Offset> points) {
-    final path = Path();
-    for (int i = 0; i < points.length; i++) {
-      if (i == 0) {
-        path.moveTo(points[i].dx, points[i].dy);
-      } else {
-        path.lineTo(points[i].dx, points[i].dy);
-      }
-    }
-    path.lineTo(size.width, size.height);
-    path.lineTo(0, size.height);
-    path.close();
-
-    final fillPaint = Paint()
-      ..color = primaryColor.withValues(alpha: 0.1)
-      ..style = PaintingStyle.fill;
-
-    canvas.drawPath(path, fillPaint);
-  }
-
-  void _drawMainLine(Canvas canvas, List<Offset> points) {
-    final path = Path();
-    for (int i = 0; i < points.length; i++) {
-      if (i == 0) {
-        path.moveTo(points[i].dx, points[i].dy);
-      } else {
-        path.lineTo(points[i].dx, points[i].dy);
-      }
-    }
-
-    final paint = Paint()
-      ..color = primaryColor
-      ..strokeWidth = isAdvancedMode ? 2.5 : 2
-      ..style = PaintingStyle.stroke;
-
-    canvas.drawPath(path, paint);
-  }
-
-  void _drawDataPoints(Canvas canvas, List<Offset> points) {
-    final pointPaint = Paint()
-      ..color = primaryColor
-      ..style = PaintingStyle.fill;
-
-    final borderPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-
-    for (int i = 0; i < points.length; i++) {
-      final point = points[i];
-      final isRecent = i >= points.length - 3;
-      final radius = isAdvancedMode && isRecent ? 4.0 : 3.0;
-      
-      canvas.drawCircle(point, radius + 1, borderPaint);
-      canvas.drawCircle(point, radius, pointPaint);
-    }
-  }
-
-  void _drawAdvancedElements(Canvas canvas, Size size, List<Offset> points) {
-    // Outliers
-    final outlierPaint = Paint()
-      ..color = Colors.red
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-
-    for (final index in chartData.outlierIndices) {
-      if (index < points.length) {
-        canvas.drawCircle(points[index], 6, outlierPaint);
-      }
-    }
-
-    // Ligne de moyenne
-    final avgY = chartData.stats.basicStats.avgPrice;
-    final normalizedAvgY = 1 - ((avgY - chartData.stats.basicStats.minPrice) / 
-        (chartData.stats.basicStats.maxPrice - chartData.stats.basicStats.minPrice));
-    final avgYPixel = normalizedAvgY * size.height;
-    
-    final avgPaint = Paint()
-      ..color = Colors.blue.withValues(alpha: 0.6)
-      ..strokeWidth = 1
-      ..style = PaintingStyle.stroke;
-
-    canvas.drawLine(
-      Offset(0, avgYPixel),
-      Offset(size.width, avgYPixel),
-      avgPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
