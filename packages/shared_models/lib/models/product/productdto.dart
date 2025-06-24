@@ -5,16 +5,15 @@ part 'productdto.g.dart';
 @JsonSerializable()
 class ProductDto {
   final int? id;
-  final int barcode;           // ✅ Reste int
+  final int barcode;
   final String name;
-  final int? brandId;          // ✅ ID au lieu de String
-  final int? categoryId;       // ✅ ID au lieu de String
+  final int? brandId;
+  final int? categoryId;
   final String? imageFileName;
   final String? imageUrl;
   final String? localImagePath;
   final String? description;
   
-  // ✅ AJOUTS demandés
   final bool isActive;
   final DateTime? createdAt;
   final DateTime? updatedAt;
