@@ -1,10 +1,12 @@
 # app-comparer
 Monorepo for the price comparison application.
 
+Fully vibe coded, do not use as is, it's  proto for me to play, there are a lot of vulnerabilities, this code is not optimized.
+
 This repository contains multiple applications and packages used by the project:
 
 - `apps/client` — Flutter mobile app (Android, iOS, web, desktop skeletons)
-- `apps/gateway_server` — Dart server that routes API requests
+- `apps/gateway_server` — Dart server that routes API requests (didnt do)
 - `apps/data_server` — Dart server that stores price data and statistics
 - `packages/shared_models` — Shared models and drift schema
 - `packages/api_contracts` — API requests & responses definitions
@@ -24,7 +26,7 @@ They focus on building and running the mobile `client_price_comparer` applicatio
 ### Quick workspace setup
 ```powershell
 # From repository root
-# Ensure `melos` is installed (optional)
+# Ensure `melos` is installed
 dart pub global activate melos
 
 # Fetch dependencies for every package and app
@@ -50,12 +52,6 @@ To create the `.env` file easily run the helper script:
 python tools\setup_env.py
 # or use the convenience batch
 tools\setup_dev.bat
-```
-
-On Unix/macOS run:
-
-```bash
-python3 tools/setup_env.py
 ```
 
 The app will fall back to `localhost:8080` when no `.env` is provided.
@@ -105,15 +101,8 @@ Note: The helper script prints `melos run run:client` as an example. The workspa
 melos run run:client
 ```
 
-### Notes on iOS
-- Building to a physical iPhone must be performed on macOS with Xcode installed. Use `flutter build ipa` or run from Xcode.
-
 ### Tips & Troubleshooting
 - Run `flutter doctor` and `flutter devices` to check your environment and connected devices.
 - If generated files (drift/json_serializable) are missing, run the build steps above or use `dart run build_runner build --delete-conflicting-outputs` from the package/app directory.
 - For consistent builds across packages, make sure `melos run build:shared` is run before launching apps or use `melos run build:apps`.
 
-### CI / Next steps
-- Consider adding a CI workflow (e.g., GitHub Actions) that runs `melos run get`, `melos run analyze`, `melos run build:all` and `melos exec -- 'dart test'` to ensure PRs are validated.
-
-If you want, I can add a `DEVELOPER.md` with this content split into quick commands and a GitHub Actions template to automate checks.
