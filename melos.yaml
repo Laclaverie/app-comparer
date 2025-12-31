@@ -76,6 +76,11 @@ scripts:
       - echo "🚀 Starting app..."
       - melos exec --scope="client_price_comparer" -- "flutter run"
 
+  # Run the client app directly (portable) -- useful for scripts and `setup_wireless_debug.py`
+  run:client:
+    steps:
+      - melos exec --scope="client_price_comparer" --flutter -- "flutter run"
+
   # Debug avec hot reload activé
   debug:hot:
     steps:

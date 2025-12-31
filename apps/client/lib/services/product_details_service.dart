@@ -23,7 +23,7 @@ class ProductDetailsService {
   final AppDatabase _database;
   late final DatabaseWrapper _dbWrapper;
   late final CacheManager _cacheManager;
-  final String _serverBaseUrl = 'http://192.168.18.5:8080';
+  final String _serverBaseUrl = 'http://192.168.18.6:8080';
   final Logger _logger = Logger('ProductDetailsService');
 
   ProductDetailsService(this._database) {

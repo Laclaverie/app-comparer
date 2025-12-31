@@ -3,7 +3,7 @@ import 'package:shared_models/models/price/price_historydto.dart';
 
 // Extension pour faciliter les null checks
 extension LetExtension<T> on T? {
-  R? let<R>(R Function(T) block) => this != null ? block(this!) : null;
+  R? let<R>(R Function(T) block) => this != null ? block(this as T) : null;
 }
 
 class MockDataHelpers {

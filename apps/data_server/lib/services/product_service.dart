@@ -7,7 +7,6 @@ import 'package:shared_models/models/brand/brand_dto.dart';
 import '../repositories/product_repository.dart';
 import '../services/image_service.dart';
 import '../extensions/product_extensions.dart';
-import '../extensions/price_extensions.dart';
 
 
 class ProductService {
