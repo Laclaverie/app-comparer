@@ -32,6 +32,8 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+# Local environment file (do not commit)
+.env
 
 # Symbolication related
 app.*.symbols

@@ -1,18 +1,35 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
+import 'app_initialization.dart';
+import 'config_service.dart';
 
 class ClientServerService {
-  static const String baseUrl = 'http://192.168.18.6:8080';
-  //static const String baseUrl = 'http://192.168.0.71:8080';
-
+  final ConfigService? _configService; // nullable: use lazy fallback when needed
   final Logger _logger = Logger('ClientServerService');
+
+  ClientServerService({ConfigService? configService}) : _configService = configService;
+
+  String get _baseUrl {
+    // Prefer injected config, otherwise try the app-level config, otherwise use a safe default
+    if (_configService != null) return _configService.baseUrl;
+    try {
+      return AppInitializationService.configService.baseUrl;
+    } catch (_) {
+      // Fallback hardcoded to avoid throwing during early construction
+      return 'http://localhost:8080';
+    }
+  }
+
+  // Expose a testing-friendly getter so tests can assert the resolved value
+  @visibleForTesting
+  String get testableBaseUrl => _baseUrl;
   
   Future<bool> checkServerHealth() async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/health'),
+        Uri.parse('$_baseUrl/health'),
         headers: {'Content-Type': 'application/json'},
       ).timeout(const Duration(seconds: 5));
       
@@ -26,7 +43,7 @@ class ClientServerService {
   Future<List<Map<String, dynamic>>?> getProducts() async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/api/products?limit=10'),
+        Uri.parse('$_baseUrl/api/products?limit=10'),
         headers: {'Content-Type': 'application/json'},
       ).timeout(const Duration(seconds: 10));
       
@@ -54,10 +71,10 @@ class ClientServerService {
   Future<Map<String, dynamic>?> getProductByBarcode(String barcode) async {
     try {
       debugPrint('🌐 [SERVER] GET produit barcode: $barcode');
-      debugPrint('   URL: $baseUrl/api/products/barcode/$barcode');
+      debugPrint('   URL: $_baseUrl/api/products/barcode/$barcode');
       
       final response = await http.get(
-        Uri.parse('$baseUrl/api/products/barcode/$barcode'),
+        Uri.parse('$_baseUrl/api/products/barcode/$barcode'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -94,13 +111,13 @@ class ClientServerService {
     try {
       // ✅ AJOUT : Debug du payload côté service
       debugPrint('🌐 [SERVER] Envoi vers serveur:');
-      debugPrint('   URL: $baseUrl/api/products');
+      debugPrint('   URL: $_baseUrl/api/products');
       debugPrint('   Method: POST');
       debugPrint('   Headers: Content-Type: application/json');
       debugPrint('   Body: ${jsonEncode(productData)}');
       
       final response = await http.post(
-        Uri.parse('$baseUrl/api/products'),
+        Uri.parse('$_baseUrl/api/products'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -159,13 +176,13 @@ class ClientServerService {
       
       // ✅ Étape 2 : Mettre à jour via l'ID
       debugPrint('🔄 [SERVER] Mise à jour produit:');
-      debugPrint('   URL: $baseUrl/api/products/$productId');
+      debugPrint('   URL: $_baseUrl/api/products/$productId');
       debugPrint('   Method: PUT');
       debugPrint('   Headers: Content-Type: application/json');
       debugPrint('   Body: ${jsonEncode(productData)}');
       
       final response = await http.put(
-        Uri.parse('$baseUrl/api/products/$productId'),
+        Uri.parse('$_baseUrl/api/products/$productId'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -208,10 +225,10 @@ class ClientServerService {
   Future<bool> checkProductExists(String barcode) async {
     try {
       debugPrint('🔍 [SERVER] Vérification existence produit:');
-      debugPrint('   URL: $baseUrl/api/products/barcode/$barcode');
+      debugPrint('   URL: $_baseUrl/api/products/barcode/$barcode');
       
       final response = await http.get(
-        Uri.parse('$baseUrl/api/products/barcode/$barcode'),
+        Uri.parse('$_baseUrl/api/products/barcode/$barcode'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -240,11 +257,11 @@ class ClientServerService {
   Future<bool> deleteProductFromTestDB(String barcode) async {
     try {
       debugPrint('🗑️ [SERVER] Suppression produit:');
-      debugPrint('   URL: $baseUrl/api/products/barcode/$barcode');
+      debugPrint('   URL: $_baseUrl/api/products/barcode/$barcode');
       debugPrint('   Method: DELETE');
       
       final response = await http.delete(
-        Uri.parse('$baseUrl/api/products/barcode/$barcode'),
+        Uri.parse('$_baseUrl/api/products/barcode/$barcode'),
         headers: {
           'Content-Type': 'application/json',
         },

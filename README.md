@@ -35,6 +35,31 @@ melos run build:shared
 melos run build:apps
 ```
 
+### Local environment (.env)
+For local development the client app reads an optional `.env` file placed in `apps/client/.env` with the following keys:
+
+- `SERVER_IP` — IP address of the data server (example: `192.168.18.6`)
+- `SERVER_PORT` — Port number used by the data server (example: `8080`)
+
+A sample file is provided at `apps/client/.env.example`. Do NOT commit your real `.env` (it's ignored by `.gitignore`).
+
+To create the `.env` file easily run the helper script:
+
+```powershell
+# On Windows
+python tools\setup_env.py
+# or use the convenience batch
+tools\setup_dev.bat
+```
+
+On Unix/macOS run:
+
+```bash
+python3 tools/setup_env.py
+```
+
+The app will fall back to `localhost:8080` when no `.env` is provided.
+
 ### Run the client app (debug/hot reload)
 ```powershell
 # From workspace root

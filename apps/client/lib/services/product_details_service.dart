@@ -15,6 +15,8 @@ import 'package:shared_models/models/promotion/promotion_type.dart';
 import 'package:shared_models/models/product/product_statistics.dart';
 
 import 'cache_manager.dart';
+import 'app_initialization.dart';
+import 'config_service.dart';
 
 /// Provides comprehensive product information and analysis services
 /// Handles price history, store comparisons, statistics, and user actions like favorites
@@ -23,15 +25,24 @@ class ProductDetailsService {
   final AppDatabase _database;
   late final DatabaseWrapper _dbWrapper;
   late final CacheManager _cacheManager;
-  final String _serverBaseUrl = 'http://192.168.18.6:8080';
+  final ConfigService? _configService;
   final Logger _logger = Logger('ProductDetailsService');
 
-  ProductDetailsService(this._database) {
+  ProductDetailsService(this._database, {ConfigService? configService}) : _configService = configService {
     _dbWrapper = DatabaseWrapper(_database);
     _cacheManager = CacheManager(_dbWrapper);
     
     // Nettoyer la DB au démarrage (async, non-bloquant)
     _initCleanup();
+  }
+
+  String get _baseUrl {
+    if (_configService != null) return _configService.baseUrl;
+    try {
+      return AppInitializationService.configService.baseUrl;
+    } catch (_) {
+      return 'http://192.168.18.6:8080';
+    }
   }
 
   void _initCleanup() {
@@ -287,7 +298,7 @@ class ProductDetailsService {
     'days': limitDays.toString(),
   };
 
-  final uri = Uri.parse('$_serverBaseUrl/api/products/barcode/$barcode/price-history')
+  final uri = Uri.parse('$_baseUrl/api/products/barcode/$barcode/price-history')
       .replace(queryParameters: queryParams);
 
   _logger.info('Requesting server price history for barcode $barcode ($limitDays days) since: ${lastLocalUpdate ?? "beginning"}');
@@ -318,7 +329,7 @@ class ProductDetailsService {
 
   /// ✅ AJOUT : Récupérer les prix actuels depuis le serveur par BARCODE
   Future<List<StorePrice>> _getCurrentServerStorePrices(int barcode) async {
-    final uri = Uri.parse('$_serverBaseUrl/api/products/barcode/$barcode/current-prices');
+    final uri = Uri.parse('$_baseUrl/api/products/barcode/$barcode/current-prices');
     
     _logger.info('Requesting current server prices for barcode $barcode');
     

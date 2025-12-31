@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:client_price_comparer/camera/barcode_scanner_widget.dart';
 import 'package:client_price_comparer/services/client_server_service.dart';
+import 'package:client_price_comparer/services/app_initialization.dart';
+import 'package:client_price_comparer/services/config_service.dart';
 
 class DebugPage extends StatefulWidget {
   const DebugPage({super.key});
@@ -13,13 +15,46 @@ class _DebugPageState extends State<DebugPage> {
   String? _barcode;
   String _serverStatus = 'Non testé';
   String _productsInfo = '';
-  bool _showAdvancedMenu = false;  // ← Ajoutez cette ligne
-  final ClientServerService _serverService = ClientServerService();
+  bool _showAdvancedMenu = false;
+  late final ConfigService _configService;
+  late final ClientServerService _serverService;
+  final TextEditingController _ipController = TextEditingController();
+  final TextEditingController _portController = TextEditingController();
 
   void _onBarcodeScanned(String barcode) {
     setState(() {
       _barcode = barcode;
     });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    try {
+      _configService = AppInitializationService.configService;
+      _ipController.text = _configService.ip;
+      _portController.text = _configService.port.toString();
+      _serverService = ClientServerService(configService: _configService);
+    } catch (_) {
+      // If AppInitializationService wasn't ready, fallback to local ConfigService and initialize it
+      _configService = ConfigService();
+      _serverService = ClientServerService(configService: _configService);
+      _configService.init().then((_) {
+        if (mounted) {
+          setState(() {
+            _ipController.text = _configService.ip;
+            _portController.text = _configService.port.toString();
+          });
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _ipController.dispose();
+    _portController.dispose();
+    super.dispose();
   }
 
   Future<void> _checkServerConnection() async {
@@ -130,6 +165,40 @@ class _DebugPageState extends State<DebugPage> {
           );
         }
       }
+    }
+  }
+
+  Future<void> _saveServerConfig() async {
+    final ip = _ipController.text.trim();
+    final port = int.tryParse(_portController.text.trim());
+
+    if (ip.isEmpty || port == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('IP ou port invalide'), backgroundColor: Colors.orange),
+        );
+      }
+      return;
+    }
+
+    await _configService.setIpPort(ip, port);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Config saved: $ip:$port'), backgroundColor: Colors.green),
+      );
+    }
+  }
+
+  Future<void> _clearServerConfig() async {
+    await _configService.clearOverride();
+    _ipController.text = _configService.ip;
+    _portController.text = _configService.port.toString();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Config cleared'), backgroundColor: Colors.blue),
+      );
     }
   }
 
@@ -335,6 +404,54 @@ class _DebugPageState extends State<DebugPage> {
                     ],
                   ),
                   const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text('Server configuration', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _ipController,
+                          decoration: const InputDecoration(
+                            labelText: 'Server IP',
+                            prefixIcon: Icon(Icons.dns),
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _portController,
+                          decoration: const InputDecoration(
+                            labelText: 'Server Port',
+                            prefixIcon: Icon(Icons.dialpad),
+                            border: OutlineInputBorder(),
+                          ),
+                          keyboardType: TextInputType.number,
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            ElevatedButton(
+                              onPressed: _saveServerConfig,
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                              child: const Text('Save'),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton(
+                              onPressed: _clearServerConfig,
+                              child: const Text('Clear'),
+                            ),
+                            const Spacer(),
+                            ElevatedButton(
+                              onPressed: _checkServerConnection,
+                              child: const Text('Test Server'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                   ElevatedButton.icon(
                     onPressed: _barcode != null ? _addScannedProductToTestDB : null,
                     icon: const Icon(Icons.add_shopping_cart),
