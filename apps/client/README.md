@@ -1,16 +1,46 @@
 # client_price_comparer
 
-A new Flutter project.
+A Flutter mobile app used for price comparison (Android & iOS). This app depends on shared workspace packages and uses `melos` to orchestrate workspace scripts.
 
-## Getting Started
+## Quick Start (Android)
 
-This project is a starting point for a Flutter application.
+The recommended workflow is to use the workspace's `melos` scripts from the repository root. Melos ensures shared dependencies are prepared and code generation is run in the right order.
 
-A few resources to get you started if this is your first Flutter project:
+```powershell
+# From repository root
+melos run get         # fetch dependencies for all packages and apps
+melos run build:shared
+melos run build:apps
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+# Run the client with flutter on a connected Android device
+melos exec --scope="client_price_comparer" --flutter -- "flutter run -d <device-id>"
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### Build APK
+```powershell
+cd apps/client
+flutter build apk --debug
+flutter install
+
+# For production-ready builds (use keystore & key.properties for signing):
+flutter build apk --release
+```
+
+### Wireless debugging
+To set your Android device for wireless ADB debugging, use the helper script in the repo root:
+```powershell
+python .\setup_wireless_debug.py
+```
+You can start the app using the dedicated `melos` script from the workspace root:
+```powershell
+melos run run:client
+```
+
+### iOS
+To build for iOS you must use a macOS machine with Xcode. Use `flutter build ipa` or open `ios/Runner.xcworkspace` in Xcode and configure code signing.
+
+### Troubleshooting
+- If code generation artifacts are missing: `melos run build:apps` or run `flutter pub run build_runner build --delete-conflicting-outputs` in packages that use build_runner.
+- Ensure the correct device is selected with `flutter devices`.
+
+For details and workspace-level scripts, check the project root `README.md` and `melos.yaml`.

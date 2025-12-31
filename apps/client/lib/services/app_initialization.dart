@@ -2,19 +2,39 @@
 
 import 'package:flutter/foundation.dart';
 import 'test_services.dart';
+import 'config_service.dart';
 import '../database/app_database.dart';
 import '../database/data_migration_service.dart';
 
+
+
 class AppInitializationService {
   static bool _isInitialized = false;
-  static AppDatabase? _database; // ✅ CORRECTION : Statique
-  
+  static AppDatabase? _database;
+  static ConfigService? _configService;
+
   /// Getter pour accéder à la base depuis l'extérieur
   static AppDatabase get database {
     if (_database == null) {
       throw StateError('Database not initialized. Call initialize() first.');
     }
     return _database!;
+  }
+
+  /// Getter pour accéder à la configuration depuis l'extérieur
+  static ConfigService get configService {
+    // Ensure we always return a usable ConfigService even if initialization hasn't run yet.
+    // This performs a lazy initialization and starts asynchronous init in background.
+    if (_configService == null) {
+      _configService = ConfigService();
+      // Start init asynchronously; don't await here to keep this getter sync-safe.
+      _configService!.init().then((_) {
+        debugPrint('✅ [INIT] Lazy ConfigService initialization completed');
+      }).catchError((e) {
+        debugPrint('⚠️ [INIT] Lazy ConfigService initialization failed: $e');
+      });
+    }
+    return _configService!;
   }
   
   /// Initialiser l'application
@@ -123,14 +143,19 @@ class AppInitializationService {
   /// Initialiser les autres services
   static Future<void> _initializeServices() async {
     debugPrint('⚙️ [INIT] Initialisation des services...');
-    
+
+    // ✅ Initialiser le ConfigService afin d'avoir une source centrale pour l'URL serveur
+    _configService = ConfigService();
+    await _configService!.init();
+    debugPrint('✅ [INIT] ConfigService initialisé - server: ${_configService!.baseUrl}');
+
     // Ici vous pourriez initialiser :
     // - Services de notification
     // - Services de synchronisation
     // - Cache de l'application
     // - Services de géolocalisation
     // etc.
-    
+
     debugPrint('✅ [INIT] Services initialisés');
   }
   

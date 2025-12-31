@@ -377,7 +377,7 @@ class _PriceHistoryCardState extends State<PriceHistoryCard> {
   }
 
   Future<void> _loadPriceHistory() async {
-    print('🔍 PRICE_HISTORY: Loading history for product ${widget.product.barcode} (${_selectedPeriodDays} days)');
+    print(' PRICE_HISTORY: Loading history for product ${widget.product.barcode} ($_selectedPeriodDays days)');
     
     setState(() {
       _isLoading = true;

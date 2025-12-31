@@ -176,7 +176,7 @@ class _TimelineDayGroup extends StatelessWidget {
               isAdvancedMode: isAdvancedMode,
               isLast: index == prices.length - 1,
             );
-          }).toList(),
+          }),
         ],
       ),
     );

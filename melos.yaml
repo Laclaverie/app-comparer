@@ -69,12 +69,63 @@ scripts:
       - melos exec  -- "dart run build_runner build --delete-conflicting-outputs"
     description: Build all projects in correct dependency order
 
+  # Run unit tests for Dart packages
+  test:packages:
+    steps:
+      - melos exec --scope="packages/*" -- "dart test"
+    description: Run unit tests for all Dart packages
+
+  # Run Flutter tests for apps
+  test:apps:
+    steps:
+      - melos exec --scope="apps/*" --flutter -- "flutter test"
+    description: Run Flutter tests for all apps
+
+  # Run both package and app tests
+  test:all:
+    steps:
+      - melos run test:packages
+      - melos run test:apps
+    description: Run all unit tests (packages + apps)
+
+  # Build everything then run unit tests
+  build:all-and-test:
+    steps:
+      - melos run build:all
+      - melos run test:all
+    description: Build everything then run all unit tests
+
+  # Build and test, then run the client (server must be started separately)
+  dev:all:
+    steps:
+      - melos run build:all-and-test
+      - echo 'NOTE - start the data server separately (melos run dev:server)'
+      - melos exec --scope="client_price_comparer" --flutter -- "flutter run"
+    description: Build, test, and run client (start data server separately)
+
+  # Start the data server (in foreground)
+  dev:server:
+    steps:
+      - melos exec --scope="data_server" -- "dart run lib/main.dart"
+    description: Start the data server in the foreground (runs existing lib/main.dart)
+
+  # Start the client app (in foreground)
+  dev:client:
+    steps:
+      - melos exec --scope="client_price_comparer" --flutter -- "flutter run"
+    description: Start the client app in the foreground
+
   dev:auto:
     steps:
       - echo "🏗️ Building shared packages..."
       - melos run build:shared
       - echo "🚀 Starting app..."
       - melos exec --scope="client_price_comparer" -- "flutter run"
+
+  # Run the client app directly (portable) -- useful for scripts and `setup_wireless_debug.py`
+  run:client:
+    steps:
+      - melos exec --scope="client_price_comparer" --flutter -- "flutter run"
 
   # Debug avec hot reload activé
   debug:hot:
