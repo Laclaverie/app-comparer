@@ -3,6 +3,10 @@ Monorepo for the price comparison application.
 
 Fully vibe coded, do not use as is, it's  proto for me to play, there are a lot of vulnerabilities, this code is not optimized.
 
+## Last update with pictures
+If you want to see the last logs of the advance please go in this file : [31 rd december 2025](doc/milestones/2025_12_31.md)
+
+## Overview
 This repository contains multiple applications and packages used by the project:
 
 - `apps/client` — Flutter mobile app (Android, iOS, web, desktop skeletons)
